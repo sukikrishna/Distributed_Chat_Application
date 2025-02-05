@@ -1,6 +1,5 @@
 import socket
 import threading
-import json
 from protocol import CustomProtocol
 from json_protocol import JSONProtocol
 from database import Database
