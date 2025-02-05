@@ -1,20 +1,19 @@
 import socket
+from config import Config
 from custom_protocol import CustomProtocol
 from json_protocol import JSONProtocol
 
 class ChatClient:
-    """Chat client to interact with the chat server."""
+    """Chat client to interact with the chat server using either JSON or Custom Binary Protocol."""
     
-    def __init__(self, host='127.0.0.1', port=5000, use_json=False):
-        """Initializes the chat client.
+    def __init__(self, use_json=False):
+        """Initializes the chat client using dynamically loaded configurations.
         
         Args:
-            host (str): Server host address.
-            port (int): Server port.
-            use_json (bool): Flag to determine protocol type (JSON or Custom Binary).
+            use_json (bool): Determines whether to use JSON or Custom Binary Protocol.
         """
-        self.host = host
-        self.port = port
+        self.host = Config.SERVER_HOST
+        self.port = Config.SERVER_PORT
         self.use_json = use_json
         self.client_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         self.client_socket.connect((self.host, self.port))

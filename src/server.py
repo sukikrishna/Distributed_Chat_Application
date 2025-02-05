@@ -1,5 +1,6 @@
 import socket
 import threading
+from config import Config
 from custom_protocol import CustomProtocol
 from json_protocol import JSONProtocol
 from database import Database
@@ -7,18 +8,16 @@ from database import Database
 class ChatServer:
     """Chat server handling client connections, authentication, and message routing."""
     
-    def __init__(self, host='127.0.0.1', port=5000, use_json=False):
-        """Initializes the chat server.
+    def __init__(self, use_json=False):
+        """Initializes the chat server using dynamically loaded configurations.
         
         Args:
-            host (str): Server host address.
-            port (int): Server port.
-            use_json (bool): Flag to determine protocol type (JSON or Custom Binary).
+            use_json (bool): Determines whether to use JSON or Custom Binary Protocol.
         """
-        self.host = host
-        self.port = port
+        self.host = Config.SERVER_HOST
+        self.port = Config.SERVER_PORT
         self.use_json = use_json
-        self.clients = {}
+        self.clients = {}  # Stores connected clients
         self.database = Database()
         self.server_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         self.server_socket.bind((self.host, self.port))
@@ -38,32 +37,31 @@ class ChatServer:
         Args:
             client_socket (socket): The socket object for the connected client.
         """
-        while True:
-            try:
+        try:
+            username = client_socket.recv(1024).decode("utf-8")  # First message is the username
+            self.clients[username] = client_socket  # Store active client
+            print(f"{username} connected.")
+            
+            while True:
                 data = client_socket.recv(1024)
                 if not data:
                     break
                 
-                if self.use_json:
-                    opcode, username, payload = JSONProtocol.decode(data)
-                    response = self.process_request(opcode, username, payload, json_format=True)
-                else:
-                    opcode, username, payload = CustomProtocol.decode(data)
-                    response = self.process_request(opcode, username, payload)
-                
+                opcode, sender, payload = (JSONProtocol.decode(data) if self.use_json else CustomProtocol.decode(data))
+                response = self.process_request(opcode, sender, payload)
                 client_socket.sendall(response)
-            except Exception as e:
-                print(f"Error handling client: {e}")
-                break
+        except Exception as e:
+            print(f"Error handling client: {e}")
+        finally:
+            self.disconnect_client(username)
     
-    def process_request(self, opcode, username, payload, json_format=False):
+    def process_request(self, opcode, username, payload):
         """Processes a client request and returns the appropriate response.
         
         Args:
             opcode (str or int): Operation code for the request.
             username (str): Username associated with the request.
             payload (str): Request payload.
-            json_format (bool): Determines whether JSON or custom binary protocol is used.
         
         Returns:
             bytes: Encoded response message.
@@ -74,13 +72,27 @@ class ChatServer:
             success = self.database.login(username, payload)
         elif opcode in [CustomProtocol.OP_SEND_MESSAGE, JSONProtocol.OP_SEND_MESSAGE]:
             recipient, message = payload.split('|', 1)
-            success = self.database.send_message(username, recipient, message)
+            if recipient in self.clients:  # If recipient is online, send immediately
+                self.clients[recipient].sendall(JSONProtocol.encode_response(True, f"{username}: {message}") if self.use_json else CustomProtocol.encode_response(True, f"{username}: {message}"))
+            else:
+                self.database.send_message(username, recipient, message)  # Store for later
+            success = True
         elif opcode in [CustomProtocol.OP_READ_MESSAGES, JSONProtocol.OP_READ_MESSAGES]:
             success = self.database.read_messages(username)
         else:
             success = False
         
-        return JSONProtocol.encode_response(success) if json_format else CustomProtocol.encode_response(success)
+        return JSONProtocol.encode_response(success) if self.use_json else CustomProtocol.encode_response(success)
+    
+    def disconnect_client(self, username):
+        """Removes a client from the active client list upon disconnection.
+        
+        Args:
+            username (str): The username of the disconnected client.
+        """
+        if username in self.clients:
+            print(f"{username} disconnected.")
+            del self.clients[username]
     
 if __name__ == "__main__":
     server = ChatServer(use_json=True)  # Set to False for Custom Binary Protocol
