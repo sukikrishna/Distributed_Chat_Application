@@ -3,12 +3,19 @@ import sys
 from client import ChatClient
 
 class ChatGUI(QWidget):
+    """Graphical User Interface for the Chat Application using PyQt5."""
+    
     def __init__(self):
+        """Initializes the chat GUI.
+        
+        Sets up the layout and event handlers for user interaction.
+        """
         super().__init__()
         self.client = ChatClient(use_json=True)  # Set to False for Custom Binary Protocol
         self.init_ui()
     
     def init_ui(self):
+        """Creates and arranges UI elements within the layout."""
         self.setWindowTitle("Chat Application")
         self.setGeometry(100, 100, 400, 500)
         
@@ -42,6 +49,11 @@ class ChatGUI(QWidget):
         self.setLayout(layout)
     
     def login(self):
+        """Handles user login.
+        
+        Retrieves the username and password input by the user and sends
+        login credentials to the server.
+        """
         username = self.username_input.text()
         password = self.password_input.text()
         success = self.client.login(username, password)
@@ -51,6 +63,11 @@ class ChatGUI(QWidget):
             self.chat_display.append("Login failed.")
     
     def send_message(self):
+        """Sends a chat message.
+        
+        Retrieves the message from the input field, sends it to the server,
+        and updates the chat display.
+        """
         message = self.message_input.text()
         self.client.send_message(self.username_input.text(), "bob", message)
         self.chat_display.append(f"You: {message}")

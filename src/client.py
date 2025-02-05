@@ -3,7 +3,16 @@ from custom_protocol import CustomProtocol
 from json_protocol import JSONProtocol
 
 class ChatClient:
+    """Chat client to interact with the chat server."""
+    
     def __init__(self, host='127.0.0.1', port=5000, use_json=False):
+        """Initializes the chat client.
+        
+        Args:
+            host (str): Server host address.
+            port (int): Server port.
+            use_json (bool): Flag to determine protocol type (JSON or Custom Binary).
+        """
         self.host = host
         self.port = port
         self.use_json = use_json
@@ -11,28 +20,67 @@ class ChatClient:
         self.client_socket.connect((self.host, self.port))
     
     def send_request(self, opcode, username, payload):
-        if self.use_json:
-            request = JSONProtocol.encode(opcode, username, payload)
-        else:
-            request = CustomProtocol.encode(opcode, username, payload)
+        """Sends a request to the server.
         
+        Args:
+            opcode (str or int): Operation code for the request.
+            username (str): Username sending the request.
+            payload (str): The request payload.
+        
+        Returns:
+            tuple: Response success status and optional data.
+        """
+        request = JSONProtocol.encode(opcode, username, payload) if self.use_json else CustomProtocol.encode(opcode, username, payload)
         self.client_socket.sendall(request)
         response = self.client_socket.recv(1024)
-        
-        if self.use_json:
-            return JSONProtocol.decode_response(response)
-        return CustomProtocol.decode_response(response)
+        return JSONProtocol.decode_response(response) if self.use_json else CustomProtocol.decode_response(response)
     
     def create_account(self, username, password):
+        """Creates a new account on the server.
+        
+        Args:
+            username (str): The new account username.
+            password (str): The account password.
+        
+        Returns:
+            bool: Whether the account was successfully created.
+        """
         return self.send_request(JSONProtocol.OP_CREATE_ACCOUNT if self.use_json else CustomProtocol.OP_CREATE_ACCOUNT, username, password)
     
     def login(self, username, password):
+        """Logs into an existing account.
+        
+        Args:
+            username (str): The account username.
+            password (str): The account password.
+        
+        Returns:
+            bool: Whether login was successful.
+        """
         return self.send_request(JSONProtocol.OP_LOGIN if self.use_json else CustomProtocol.OP_LOGIN, username, password)
     
     def send_message(self, sender, recipient, message):
+        """Sends a message to another user.
+        
+        Args:
+            sender (str): The sender's username.
+            recipient (str): The recipient's username.
+            message (str): The message content.
+        
+        Returns:
+            bool: Whether the message was sent successfully.
+        """
         return self.send_request(JSONProtocol.OP_SEND_MESSAGE if self.use_json else CustomProtocol.OP_SEND_MESSAGE, sender, f"{recipient}|{message}")
     
     def read_messages(self, username):
+        """Reads all messages for the logged-in user.
+        
+        Args:
+            username (str): The username whose messages should be retrieved.
+        
+        Returns:
+            list: List of messages received.
+        """
         return self.send_request(JSONProtocol.OP_READ_MESSAGES if self.use_json else CustomProtocol.OP_READ_MESSAGES, username, "")
     
 if __name__ == "__main__":
