@@ -1,5 +1,5 @@
 import socket
-from protocol import CustomProtocol
+from custom_protocol import CustomProtocol
 from json_protocol import JSONProtocol
 
 class ChatClient:
