@@ -1,4 +1,4 @@
-# Chat Application
+# Chat Application (Starter Code)
 
 ## Overview
 This is a client-server chat application that supports two implementations for message communication:
