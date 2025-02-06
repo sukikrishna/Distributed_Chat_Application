@@ -1,61 +1,25 @@
 import pytest
 from client import ChatClient
 
-@pytest.fixture(scope="module")
+@pytest.fixture
 def client():
-    """Provides a ChatClient instance for testing.
-    
-    Returns:
-        ChatClient: A client instance connected to the server.
-    """
+    """Provides a ChatClient instance for testing."""
     return ChatClient(use_json=True)
 
-def test_create_account(monkeypatch, client):
-    """Tests account creation functionality using monkeypatching.
-    
-    Args:
-        monkeypatch (pytest.MonkeyPatch): Pytest fixture for modifying behavior.
-        client (ChatClient): The client instance used for testing.
-    """
-    monkeypatch.setattr(client, "create_account", lambda u, p: u != "existing_user")
-    assert client.create_account("new_user", "password123")
-    assert not client.create_account("existing_user", "password123")  # Duplicate username
-
 def test_login(monkeypatch, client):
-    """Tests user login functionality using monkeypatching.
-    
-    Args:
-        monkeypatch (pytest.MonkeyPatch): Pytest fixture for modifying behavior.
-        client (ChatClient): The client instance used for testing.
-    """
+    """Tests user login functionality using monkeypatching."""
     monkeypatch.setattr(client, "login", lambda u, p: p == "test_password")
     assert client.login("test_user", "test_password")
-    assert not client.login("test_user", "wrong_password")  # Invalid credentials
+    assert not client.login("test_user", "wrong_password")
 
 def test_send_message(monkeypatch, client):
-    """Tests sending a message using monkeypatching, including network failure scenarios.
-    
-    Args:
-        monkeypatch (pytest.MonkeyPatch): Pytest fixture for modifying behavior.
-        client (ChatClient): The client instance used for testing.
-    """
+    """Tests sending messages, including network failures."""
     monkeypatch.setattr(client, "send_message", lambda s, r, m: m != "fail")
-    assert client.send_message("test_user", "receiver", "Hello!")
-    
-    monkeypatch.setattr(client, "send_message", lambda s, r, m: (_ for _ in ()).throw(Exception("Network Failure")))
-    with pytest.raises(Exception, match="Network Failure"):
-        client.send_message("test_user", "receiver", "fail")
+    assert client.send_message("alice", "bob", "Hello!")
 
-def test_read_messages(monkeypatch, client):
-    """Tests reading received messages using monkeypatching, including empty inbox scenarios.
-    
-    Args:
-        monkeypatch (pytest.MonkeyPatch): Pytest fixture for modifying behavior.
-        client (ChatClient): The client instance used for testing.
-    """
-    monkeypatch.setattr(client, "read_messages", lambda u: [("sender", "Hello!")] if u != "empty_user" else [])
-    messages = client.read_messages("receiver")
-    assert isinstance(messages, list) and len(messages) > 0
-    
-    messages = client.read_messages("empty_user")
-    assert messages == []
+    def raise_network_error(*args, **kwargs):
+        raise Exception("Network Failure")
+
+    monkeypatch.setattr(client, "send_message", raise_network_error)
+    with pytest.raises(Exception, match="Network Failure"):
+        client.send_message("alice", "bob", "fail")

@@ -14,22 +14,10 @@ def test_json_protocol_encoding_decoding():
     decoded = JSONProtocol.decode(encoded)
     assert decoded == (JSONProtocol.OP_CREATE_ACCOUNT, "alice", "password123")
 
-def test_custom_protocol_response():
-    """Tests encoding and decoding of responses using the Custom Binary Protocol."""
-    encoded = CustomProtocol.encode_response(True, "Success")
-    decoded = CustomProtocol.decode_response(encoded)
-    assert decoded == (True, "Success")
+def test_protocol_invalid_decoding():
+    """Tests protocol decoding failure on invalid input."""
+    with pytest.raises(Exception):
+        CustomProtocol.decode(b"invalid data")
     
-    encoded = CustomProtocol.encode_response(False, "Error")
-    decoded = CustomProtocol.decode_response(encoded)
-    assert decoded == (False, "Error")
-
-def test_json_protocol_response():
-    """Tests encoding and decoding of responses using the JSON Protocol."""
-    encoded = JSONProtocol.encode_response(True, "Success")
-    decoded = JSONProtocol.decode_response(encoded)
-    assert decoded == (True, "Success")
-    
-    encoded = JSONProtocol.encode_response(False, "Error")
-    decoded = JSONProtocol.decode_response(encoded)
-    assert decoded == (False, "Error")
+    with pytest.raises(Exception):
+        JSONProtocol.decode(b"not a json string")

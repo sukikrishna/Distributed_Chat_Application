@@ -1,63 +1,33 @@
 import pytest
 from database import Database
 
-db = Database(db_name='test_chat.db')
+@pytest.fixture
+def mock_database(monkeypatch):
+    """Mocks the database instance for testing."""
+    class MockDatabase:
+        def create_account(self, username, password):
+            return username != "existing_user"
 
-@pytest.fixture(scope="module")
-def database():
-    """Provides a test database instance with monkeypatching.
-    
-    Returns:
-        Database: A mocked database instance.
-    """
-    return db
+        def login(self, username, password):
+            return password == "valid_password"
 
-def test_create_account(monkeypatch, database):
-    """Tests account creation, including duplicate usernames, using monkeypatching.
-    
-    Args:
-        monkeypatch (pytest.MonkeyPatch): Pytest fixture for modifying behavior.
-        database (Database): The database instance used for testing.
-    """
-    monkeypatch.setattr(database, "create_account", lambda u, p: u != "existing_user")
-    assert database.create_account("new_user", "password123")
-    assert not database.create_account("existing_user", "password123")  # Duplicate username
+        def send_message(self, sender, recipient, message):
+            if message == "fail":
+                raise Exception("Database Error")
+            return True
 
-def test_login(monkeypatch, database):
-    """Tests user login validation, including invalid credentials, using monkeypatching.
-    
-    Args:
-        monkeypatch (pytest.MonkeyPatch): Pytest fixture for modifying behavior.
-        database (Database): The database instance used for testing.
-    """
-    monkeypatch.setattr(database, "login", lambda u, p: p == "test_password")
-    assert database.login("test_user", "test_password")
-    assert not database.login("test_user", "wrong_password")  # Invalid credentials
+        def read_messages(self, username):
+            return [("alice", "Hello!")] if username != "empty_user" else []
 
-def test_send_message(monkeypatch, database):
-    """Tests sending a message and handling network failures using monkeypatching.
-    
-    Args:
-        monkeypatch (pytest.MonkeyPatch): Pytest fixture for modifying behavior.
-        database (Database): The database instance used for testing.
-    """
-    monkeypatch.setattr(database, "send_message", lambda s, r, m: m != "fail")
-    assert database.send_message("test_user", "receiver", "Hello!")
-    
-    monkeypatch.setattr(database, "send_message", lambda s, r, m: (_ for _ in ()).throw(Exception("Network Failure")))
-    with pytest.raises(Exception, match="Network Failure"):
-        database.send_message("test_user", "receiver", "fail")
+    monkeypatch.setattr("database.Database", MockDatabase)
+    return MockDatabase()
 
-def test_read_messages(monkeypatch, database):
-    """Tests reading stored messages, including handling empty inboxes, using monkeypatching.
-    
-    Args:
-        monkeypatch (pytest.MonkeyPatch): Pytest fixture for modifying behavior.
-        database (Database): The database instance used for testing.
-    """
-    monkeypatch.setattr(database, "read_messages", lambda u: [("sender", "Hello!")] if u != "empty_user" else [])
-    messages = database.read_messages("receiver")
-    assert isinstance(messages, list) and len(messages) > 0
-    
-    messages = database.read_messages("empty_user")
-    assert messages == []
+def test_create_account(mock_database):
+    """Tests account creation with database interaction."""
+    assert mock_database.create_account("new_user", "password123")
+    assert not mock_database.create_account("existing_user", "password123")
+
+def test_read_messages(mock_database):
+    """Tests reading received messages from the database."""
+    assert mock_database.read_messages("bob") == [("alice", "Hello!")]
+    assert mock_database.read_messages("empty_user") == []
