@@ -44,14 +44,15 @@ class CustomProtocolServer:
         self.messages[username] = []
         return True
 
-    def login(self, username: str, password: str) -> bool:
+    def login(self, username: str, password: str) -> Tuple[bool, int]:
         if username not in self.accounts:
-            return False
+            return False, 0
         stored_password, is_logged_in, _ = self.accounts[username]
         if stored_password == self._hash_password(password):
             self.accounts[username] = (stored_password, True, {})
-            return True
-        return False
+            unread_count = sum(1 for msg in self.messages[username] if not msg.read)
+            return True, unread_count
+        return False, 0
 
     def logout(self, username: str) -> bool:
         if username in self.accounts:
@@ -80,7 +81,6 @@ class CustomProtocolServer:
             client_socket.close()
 
     def handle_account_operation(self, message: str, client_socket: socket.socket):
-        """Handle account creation and login operations."""
         parts = message.split(":")
         operation = parts[0]
         username = parts[1]
@@ -92,14 +92,13 @@ class CustomProtocolServer:
             else:
                 client_socket.send("Account already exists".encode())
         elif operation == "LOGIN":
-            if self.login(username, password):
-                client_socket.send("SUCCESS".encode())
+            success, unread_count = self.login(username, password)
+            if success:
+                client_socket.send(f"SUCCESS:{unread_count}".encode())
                 self.active_connections[username] = client_socket
-                
-                # Start a thread to handle this client's messages
                 threading.Thread(target=self.handle_private_chat_client, 
-                               args=(username, client_socket), 
-                               daemon=True).start()
+                            args=(username, client_socket), 
+                            daemon=True).start()
             else:
                 client_socket.send("Invalid username or password".encode())
 
@@ -236,5 +235,5 @@ class CustomProtocolServer:
                 continue
 
 if __name__ == "__main__":
-    server = CustomProtocolServer("127.0.0.1", 50050)
+    server = CustomProtocolServer("127.0.0.1", 50051)
     server.start()
