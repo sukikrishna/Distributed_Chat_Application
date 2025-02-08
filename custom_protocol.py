@@ -137,10 +137,9 @@ class CustomProtocolServer:
                     break
                     
                 if message == "LIST_ACCOUNTS":
-                    # Send list of all usernames
-                    account_list = list(self.accounts.keys())
-                    client_socket.send(json.dumps(account_list).encode())
-                    
+                    account_list = ",".join(self.accounts.keys())
+                    client_socket.send(account_list.encode())
+
                 elif message.startswith("MSG:"):
                     # Handle private message
                     _, recipient, content = message.split(":", 2)
@@ -260,5 +259,5 @@ class CustomProtocolServer:
                 continue
 
 if __name__ == "__main__":
-    server = CustomProtocolServer("127.0.0.1", 50013)
+    server = CustomProtocolServer("127.0.0.1", 50021)
     server.start()
