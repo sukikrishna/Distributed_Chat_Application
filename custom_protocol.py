@@ -1,392 +1,210 @@
-from dataclasses import dataclass
-from enum import Enum
 import socket
 import selectors
-import types
-import hashlib
-import struct
-from typing import Optional, List, Dict, Tuple
 import threading
-import queue
+import hashlib
 import time
+import json
+from dataclasses import dataclass
+from enum import Enum
+from typing import Dict, List, Set, Optional
 
 class MessageType(Enum):
     CREATE_ACCOUNT = 1
     LOGIN = 2
     LIST_ACCOUNTS = 3
-    SEND_MESSAGE = 4
-    READ_MESSAGES = 5
-    DELETE_MESSAGES = 6
-    DELETE_ACCOUNT = 7
-    LOGOUT = 8
-    ERROR = 9
-    SUCCESS = 10
-    UPDATE_SETTINGS = 11
-
-@dataclass
-class Message:
-    type: MessageType
-    payload_length: int
-    payload: bytes
+    PRIVATE_MESSAGE = 4
+    GROUP_MESSAGE = 5
+    JOIN_GROUP = 6
+    LEAVE_GROUP = 7
+    DELETE_CHAT = 8
+    GET_HISTORY = 9
 
 @dataclass
 class ChatMessage:
     id: int
     sender: str
-    recipient: str
     content: str
     timestamp: float
-    read: bool = False
+    is_group: bool
+    chat_id: str  # group_id for group messages, recipient for private messages
 
-class CustomProtocolServer:
+class ChatServer:
     def __init__(self, host: str, port: int):
         self.host = host
         self.port = port
-        self.selector = selectors.DefaultSelector()
-        self.accounts: Dict[str, Tuple[str, bool, dict]] = {}  # username -> (hashed_password, logged_in, settings)
-        self.messages: Dict[str, List[ChatMessage]] = {}
+        self.accounts = {}  # username -> (password_hash, online_status)
+        self.user_sockets = {}  # username -> socket
+        self.message_history = {}  # chat_id -> [ChatMessage]
+        self.group_members = {}  # group_id -> set(usernames)
         self.next_message_id = 1
-        self.active_connections: Dict[str, socket.socket] = {}
+        self.message_lock = threading.Lock()
 
     def _hash_password(self, password: str) -> str:
         return hashlib.sha256(password.encode()).hexdigest()
 
-    def pack_message(self, msg_type: MessageType, payload: bytes) -> bytes:
-        return struct.pack('!BL', msg_type.value, len(payload)) + payload
-
-    def unpack_message(self, data: bytes) -> Message:
-        msg_type, payload_length = struct.unpack('!BL', data[:5])
-        payload = data[5:5+payload_length]
-        return Message(MessageType(msg_type), payload_length, payload)
-
-    def handle_create_account(self, payload: bytes) -> bytes:
-        username, password = payload.decode().split(':')
-        if username in self.accounts:
-            return self.pack_message(MessageType.ERROR, b"Username already exists")
-        default_settings = {
-            'messages_per_fetch': 10,
-            'delete_messages_on_account_deletion': True
-        }
-        self.accounts[username] = (self._hash_password(password), False, default_settings)
-        self.messages[username] = []
-        return self.pack_message(MessageType.SUCCESS, b"Account created successfully")
-
-    def handle_login(self, payload: bytes, client_socket: socket.socket) -> bytes:
-        username, password = payload.decode().split(':')
-        if username not in self.accounts:
-            return self.pack_message(MessageType.ERROR, b"Username does not exist")
-        stored_hash, logged_in, settings = self.accounts[username]
-        if stored_hash != self._hash_password(password):
-            return self.pack_message(MessageType.ERROR, b"Invalid password")
-        if logged_in:
-            return self.pack_message(MessageType.ERROR, b"Account already logged in")
-
-        self.accounts[username] = (stored_hash, True, settings)
-        self.active_connections[username] = client_socket
-        unread_count = sum(1 for msg in self.messages[username] if not msg.read)
-        return self.pack_message(MessageType.SUCCESS, f"Login successful. {unread_count} unread messages".encode())
-
-    def handle_logout(self, payload: bytes) -> bytes:
-        username = payload.decode()
-        if username in self.accounts:
-            stored_hash, _, settings = self.accounts[username]
-            self.accounts[username] = (stored_hash, False, settings)
-            if username in self.active_connections:
-                del self.active_connections[username]
-            return self.pack_message(MessageType.SUCCESS, b"Logged out successfully")
-        return self.pack_message(MessageType.ERROR, b"User not found")
-
-    def handle_list_accounts(self, payload: bytes) -> bytes:
-        sender, pattern = payload.decode().split(':', 1)
-        matching_accounts = []
-        for username in self.accounts.keys():
-            if pattern in username:
-                _, logged_in, _ = self.accounts[username]
-                status = "online" if logged_in else "offline"
-                unread_count = sum(1 for msg in self.messages[username] 
-                                 if not msg.read and msg.sender == sender)
-                matching_accounts.append(f"{username}:{status}:{unread_count}")
-        return self.pack_message(MessageType.SUCCESS, '\n'.join(matching_accounts).encode())
-
-    def handle_send_message(self, payload: bytes) -> bytes:
-        sender, recipient, message = payload.decode().split(':', 2)
-        if recipient not in self.accounts:
-            return self.pack_message(MessageType.ERROR, b"Recipient does not exist")
-
-        chat_message = ChatMessage(
-            id=self.next_message_id,
-            sender=sender,
-            recipient=recipient,
-            content=message,
-            timestamp=time.time()
-        )
-        self.next_message_id += 1
-        self.messages[recipient].append(chat_message)
-
-        if recipient in self.active_connections:
-            try:
-                notification = self.pack_message(
-                    MessageType.SUCCESS,
-                    f"New message from {sender}".encode()
-                )
-                self.active_connections[recipient].send(notification)
-            except:
-                pass
-
-        return self.pack_message(MessageType.SUCCESS, b"Message sent successfully")
-
-    def handle_read_messages(self, payload: bytes) -> bytes:
-        username, count = payload.decode().split(':')
-        count = int(count)
-        if username not in self.messages:
-            return self.pack_message(MessageType.ERROR, b"User not found")
-
-        messages = self.messages[username][-count:]
-        messages_data = []
-        for msg in messages:
-            msg.read = True
-            messages_data.append(f"{msg.id}:{msg.sender}:{msg.timestamp}:{msg.content}")
-
-        return self.pack_message(MessageType.SUCCESS, '\n'.join(messages_data).encode())
-
-    def handle_delete_messages(self, payload: bytes) -> bytes:
-        username, message_ids = payload.decode().split(':')
-        if username not in self.messages:
-            return self.pack_message(MessageType.ERROR, b"User not found")
-
-        message_ids = set(int(id) for id in message_ids.split(','))
-        self.messages[username] = [
-            msg for msg in self.messages[username]
-            if msg.id not in message_ids
-        ]
-        return self.pack_message(MessageType.SUCCESS, b"Messages deleted successfully")
-
-    def handle_delete_account(self, payload: bytes) -> bytes:
-        username, password = payload.decode().split(':')
-        if username not in self.accounts:
-            return self.pack_message(MessageType.ERROR, b"User not found")
-
-        stored_hash, _, settings = self.accounts[username]
-        if stored_hash != self._hash_password(password):
-            return self.pack_message(MessageType.ERROR, b"Invalid password")
-
-        del self.accounts[username]
-        del self.messages[username]
-        if username in self.active_connections:
-            del self.active_connections[username]
-
-        return self.pack_message(MessageType.SUCCESS, b"Account deleted successfully")
-
-    def handle_update_settings(self, payload: bytes) -> bytes:
-        username, settings_str = payload.decode().split(':', 1)
-        if username not in self.accounts:
-            return self.pack_message(MessageType.ERROR, b"User not found")
-
-        stored_hash, logged_in, old_settings = self.accounts[username]
-        new_settings = eval(settings_str)  # Be careful with eval in production!
-        self.accounts[username] = (stored_hash, logged_in, {**old_settings, **new_settings})
-        return self.pack_message(MessageType.SUCCESS, b"Settings updated successfully")
-
     def start(self):
         server_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        server_socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
         server_socket.bind((self.host, self.port))
-        server_socket.listen()
-        server_socket.setblocking(False)
-        self.selector.register(server_socket, selectors.EVENT_READ, data=None)
-
+        server_socket.listen(5)
         print(f"Server started on {self.host}:{self.port}")
 
+        while True:
+            client_socket, address = server_socket.accept()
+            threading.Thread(target=self.handle_client, args=(client_socket,), daemon=True).start()
+
+    def handle_client(self, client_socket: socket.socket):
+        username = None
         try:
             while True:
-                events = self.selector.select()
-                for key, mask in events:
-                    if key.data is None:
-                        self.accept_connection(key.fileobj)
-                    else:
-                        self.service_connection(key, mask)
-        except KeyboardInterrupt:
-            print("Server shutting down...")
-        finally:
-            self.selector.close()
-
-    def accept_connection(self, sock):
-        conn, addr = sock.accept()
-        print(f"Accepted connection from {addr}")
-        conn.setblocking(False)
-        data = types.SimpleNamespace(addr=addr, inb=b"", outb=b"")
-        events = selectors.EVENT_READ | selectors.EVENT_WRITE
-        self.selector.register(conn, events, data=data)
-
-    def service_connection(self, key, mask):
-        sock = key.fileobj
-        data = key.data
-
-        if mask & selectors.EVENT_READ:
-            recv_data = sock.recv(1024)
-            if recv_data:
-                data.inb += recv_data
-                while len(data.inb) >= 5:
-                    try:
-                        message = self.unpack_message(data.inb)
-                        handlers = {
-                            MessageType.CREATE_ACCOUNT: self.handle_create_account,
-                            MessageType.LOGIN: lambda p: self.handle_login(p, sock),
-                            MessageType.LOGOUT: self.handle_logout,
-                            MessageType.LIST_ACCOUNTS: self.handle_list_accounts,
-                            MessageType.SEND_MESSAGE: self.handle_send_message,
-                            MessageType.READ_MESSAGES: self.handle_read_messages,
-                            MessageType.DELETE_MESSAGES: self.handle_delete_messages,
-                            MessageType.DELETE_ACCOUNT: self.handle_delete_account,
-                            MessageType.UPDATE_SETTINGS: self.handle_update_settings
-                        }
-                        handler = handlers.get(message.type)
-                        if handler:
-                            response = handler(message.payload)
-                            data.outb += response
-                        data.inb = data.inb[5+message.payload_length:]
-                    except Exception as e:
-                        print(f"Error processing message: {e}")
-                        break
-            else:
-                print(f"Closing connection to {data.addr}")
-                self.selector.unregister(sock)
-                sock.close()
-
-        if mask & selectors.EVENT_WRITE:
-            if data.outb:
-                sent = sock.send(data.outb)
-                data.outb = data.outb[sent:]
-
-class CustomProtocolClient:
-    def __init__(self, host: str, port: int):
-        self.host = host
-        self.port = port
-        self.socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        self.receive_queue = queue.Queue()
-        self.current_user = None
-        self.settings = {
-            'messages_per_fetch': 10,
-            'delete_messages_on_account_deletion': True
-        }
-
-    def connect(self):
-        try:
-            self.socket.connect((self.host, self.port))
-            self.receive_thread = threading.Thread(target=self._receive_messages)
-            self.receive_thread.daemon = True
-            self.receive_thread.start()
-            return True
-        except Exception as e:
-            print(f"Connection failed: {e}")
-            return False
-
-    def pack_message(self, msg_type: MessageType, payload: bytes) -> bytes:
-        return struct.pack('!BL', msg_type.value, len(payload)) + payload
-
-    def unpack_message(self, data: bytes) -> Message:
-        msg_type, payload_length = struct.unpack('!BL', data[:5])
-        payload = data[5:5+payload_length]
-        return Message(MessageType(msg_type), payload_length, payload)
-
-    def _receive_messages(self):
-        while True:
-            try:
-                header = self.socket.recv(5)
-                if not header:
+                message = client_socket.recv(1024).decode()
+                if not message:
                     break
-                msg_type, payload_length = struct.unpack('!BL', header)
-                payload = self.socket.recv(payload_length)
-                message = Message(MessageType(msg_type), payload_length, payload)
-                self.receive_queue.put(message)
-            except Exception as e:
-                print(f"Error receiving message: {e}")
-                break
 
-    def create_account(self, username: str, password: str) -> str:
-        payload = f"{username}:{password}".encode()
-        self.socket.send(self.pack_message(MessageType.CREATE_ACCOUNT, payload))
-        response = self.receive_queue.get()
-        return response.payload.decode()
+                parts = message.split(":", 2)
+                command = parts[0]
 
-    def login(self, username: str, password: str) -> str:
-        payload = f"{username}:{password}".encode()
-        self.socket.send(self.pack_message(MessageType.LOGIN, payload))
-        response = self.receive_queue.get()
-        if response.type == MessageType.SUCCESS:
-            self.current_user = username
-        return response.payload.decode()
+                if command == "CREATE":
+                    username, password = parts[1:]
+                    if username in self.accounts:
+                        client_socket.send("ERROR:Username already exists".encode())
+                    else:
+                        self.accounts[username] = (self._hash_password(password), False)
+                        client_socket.send("SUCCESS:Account created".encode())
 
-    def logout(self) -> str:
-        if not self.current_user:
-            return "Not logged in"
-        payload = self.current_user.encode()
-        self.socket.send(self.pack_message(MessageType.LOGOUT, payload))
-        response = self.receive_queue.get()
-        if response.type == MessageType.SUCCESS:
-            self.current_user = None
-        return response.payload.decode()
+                elif command == "LOGIN":
+                    username, password = parts[1:]
+                    if username not in self.accounts:
+                        client_socket.send("ERROR:Account not found".encode())
+                        continue
+                    
+                    stored_hash, _ = self.accounts[username]
+                    if stored_hash != self._hash_password(password):
+                        client_socket.send("ERROR:Invalid password".encode())
+                        continue
 
-    def list_accounts(self, pattern: str = "") -> List[str]:
-        if not self.current_user:
-            return []
-        payload = f"{self.current_user}:{pattern}".encode()
-        self.socket.send(self.pack_message(MessageType.LIST_ACCOUNTS, payload))
-        response = self.receive_queue.get()
-        return response.payload.decode().split('\n') if response.payload else []
+                    self.accounts[username] = (stored_hash, True)
+                    self.user_sockets[username] = client_socket
+                    client_socket.send("SUCCESS:Logged in".encode())
 
-    def send_message(self, recipient: str, message: str) -> str:
-        if not self.current_user:
-            return "Not logged in"
-        payload = f"{self.current_user}:{recipient}:{message}".encode()
-        self.socket.send(self.pack_message(MessageType.SEND_MESSAGE, payload))
-        response = self.receive_queue.get()
-        return response.payload.decode()
+                elif command == "PRIVATE_MESSAGE":
+                    if not username:
+                        continue
+                    recipient, content = parts[1:]
+                    self.handle_private_message(username, recipient, content)
 
-    def read_messages(self, count: Optional[int] = None) -> List[str]:
-        if not self.current_user:
-            return []
-        if count is None:
-            count = self.settings['messages_per_fetch']
-        payload = f"{self.current_user}:{count}".encode()
-        self.socket.send(self.pack_message(MessageType.READ_MESSAGES, payload))
-        response = self.receive_queue.get()
-        messages = response.payload.decode().split('\n') if response.payload else []
-        return [msg for msg in messages if msg]  # Filter out empty strings
+                elif command == "GROUP_MESSAGE":
+                    if not username:
+                        continue
+                    group_id, content = parts[1:]
+                    self.handle_group_message(username, group_id, content)
 
-    def delete_messages(self, message_ids: List[int]) -> str:
-        if not self.current_user:
-            return "Not logged in"
-        payload = f"{self.current_user}:{','.join(map(str, message_ids))}".encode()
-        self.socket.send(self.pack_message(MessageType.DELETE_MESSAGES, payload))
-        response = self.receive_queue.get()
-        return response.payload.decode()
+                elif command == "JOIN_GROUP":
+                    if not username:
+                        continue
+                    group_id = parts[1]
+                    if group_id not in self.group_members:
+                        self.group_members[group_id] = set()
+                    self.group_members[group_id].add(username)
+                    self.broadcast_group_message(group_id, f"System: {username} joined the group")
 
-    def delete_account(self, password: str) -> str:
-        if not self.current_user:
-            return "Not logged in"
-        payload = f"{self.current_user}:{password}".encode()
-        self.socket.send(self.pack_message(MessageType.DELETE_ACCOUNT, payload))
-        response = self.receive_queue.get()
-        if response.type == MessageType.SUCCESS:
-            self.current_user = None
-        return response.payload.decode()
+                elif command == "GET_HISTORY":
+                    if not username:
+                        continue
+                    chat_id = parts[1]
+                    self.send_chat_history(username, chat_id)
 
-    def update_settings(self, new_settings: dict) -> str:
-        if not self.current_user:
-            return "Not logged in"
-        self.settings.update(new_settings)
-        payload = f"{self.current_user}:{str(new_settings)}".encode()
-        self.socket.send(self.pack_message(MessageType.UPDATE_SETTINGS, payload))
-        response = self.receive_queue.get()
-        return response.payload.decode()
+                elif command == "DELETE_CHAT":
+                    if not username:
+                        continue
+                    chat_id = parts[1]
+                    if chat_id in self.message_history:
+                        del self.message_history[chat_id]
+                    if chat_id in self.group_members:
+                        del self.group_members[chat_id]
 
-    def close(self):
-        """Close the connection"""
-        if self.current_user:
-            self.logout()
-        self.socket.close()
+        except Exception as e:
+            print(f"Error handling client: {e}")
+        finally:
+            if username:
+                if username in self.user_sockets:
+                    del self.user_sockets[username]
+                if username in self.accounts:
+                    stored_hash, _ = self.accounts[username]
+                    self.accounts[username] = (stored_hash, False)
+            client_socket.close()
+
+    def handle_private_message(self, sender: str, recipient: str, content: str):
+        chat_id = f"private_{min(sender, recipient)}_{max(sender, recipient)}"
+        
+        with self.message_lock:
+            message = ChatMessage(
+                id=self.next_message_id,
+                sender=sender,
+                content=content,
+                timestamp=time.time(),
+                is_group=False,
+                chat_id=chat_id
+            )
+            self.next_message_id += 1
+            
+            if chat_id not in self.message_history:
+                self.message_history[chat_id] = []
+            self.message_history[chat_id].append(message)
+
+        self.send_message_to_user(recipient, self.format_message(message))
+        self.send_message_to_user(sender, self.format_message(message))
+
+    def handle_group_message(self, sender: str, group_id: str, content: str):
+        if group_id not in self.group_members:
+            return
+
+        with self.message_lock:
+            message = ChatMessage(
+                id=self.next_message_id,
+                sender=sender,
+                content=content,
+                timestamp=time.time(),
+                is_group=True,
+                chat_id=group_id
+            )
+            self.next_message_id += 1
+            
+            if group_id not in self.message_history:
+                self.message_history[group_id] = []
+            self.message_history[group_id].append(message)
+
+        self.broadcast_group_message(group_id, self.format_message(message))
+
+    def format_message(self, message: ChatMessage) -> str:
+        timestamp = time.strftime("%Y-%m-%d %H:%M:%S", time.localtime(message.timestamp))
+        return f"{message.id}:{timestamp}:{message.sender}:{message.content}"
+
+    def send_message_to_user(self, username: str, message: str):
+        if username in self.user_sockets:
+            try:
+                self.user_sockets[username].send(f"MESSAGE:{message}".encode())
+            except:
+                if username in self.user_sockets:
+                    del self.user_sockets[username]
+
+    def broadcast_group_message(self, group_id: str, message: str):
+        if group_id not in self.group_members:
+            return
+        for username in self.group_members[group_id]:
+            self.send_message_to_user(username, message)
+
+    def send_chat_history(self, username: str, chat_id: str):
+        if chat_id not in self.message_history:
+            return
+        history = [self.format_message(msg) for msg in self.message_history[chat_id]]
+        if username in self.user_sockets:
+            try:
+                self.user_sockets[username].send(f"HISTORY:{chat_id}:{json.dumps(history)}".encode())
+            except:
+                if username in self.user_sockets:
+                    del self.user_sockets[username]
 
 if __name__ == "__main__":
-    # Example server usage
-    server = CustomProtocolServer("localhost", 50002)
+    server = ChatServer("127.0.0.1", 50011)
     server.start()
