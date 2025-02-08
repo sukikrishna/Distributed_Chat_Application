@@ -14,7 +14,7 @@ class ChatGUI:
         self.root.geometry("1000x600")
 
         self.host = "127.0.0.1"
-        self.port = 50011
+        self.port = 50013
         self.username = None
         self.client_socket = None
         self.current_chat = None

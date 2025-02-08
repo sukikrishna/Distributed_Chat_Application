@@ -236,8 +236,8 @@ if __name__ == "__main__":
     import argparse
     
     parser = argparse.ArgumentParser(description="Chat Client")
-    parser.add_argument("--host", type=str, default="localhost", help="Server host")
-    parser.add_argument("--port", type=int, default=5000, help="Server port")
+    parser.add_argument("--host", type=str, default="127.0.0.1", help="Server host")
+    parser.add_argument("--port", type=int, default=50011, help="Server port")
     
     args = parser.parse_args()
     
