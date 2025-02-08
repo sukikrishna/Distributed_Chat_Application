@@ -4,7 +4,6 @@ import tkinter as tk
 from tkinter import ttk, messagebox, scrolledtext, simpledialog
 import socket
 import threading
-from custom_protocol import MessageType
 
 class ChatGUI:
     def __init__(self):
@@ -13,7 +12,7 @@ class ChatGUI:
         self.root.geometry("1000x600")
 
         self.host = "127.0.0.1"
-        self.port = 50021
+        self.port = 50050
         self.username = None
         self.client_socket = None
         self.current_chat = None

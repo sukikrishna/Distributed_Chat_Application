@@ -4,33 +4,10 @@ from dataclasses import dataclass
 from enum import Enum
 import socket
 import selectors
-import struct
 import threading
-import queue
 import hashlib
 import time
-import json
-from typing import Optional, List, Dict, Tuple
-
-class MessageType(Enum):
-    CREATE_ACCOUNT = 1
-    LOGIN = 2
-    LIST_ACCOUNTS = 3
-    SEND_MESSAGE = 4
-    READ_MESSAGES = 5
-    DELETE_MESSAGES = 6
-    DELETE_ACCOUNT = 7
-    LOGOUT = 8
-    GROUP_CHAT = 9
-    ERROR = 10
-    SUCCESS = 11
-    UPDATE_SETTINGS = 12
-
-@dataclass
-class Message:
-    type: MessageType
-    payload_length: int
-    payload: bytes
+from typing import List, Dict, Tuple
 
 @dataclass
 class ChatMessage:
@@ -259,5 +236,5 @@ class CustomProtocolServer:
                 continue
 
 if __name__ == "__main__":
-    server = CustomProtocolServer("127.0.0.1", 50021)
+    server = CustomProtocolServer("127.0.0.1", 50050)
     server.start()
