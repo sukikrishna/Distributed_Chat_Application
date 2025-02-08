@@ -1,3 +1,5 @@
+# custom_protocol.py
+
 from dataclasses import dataclass
 from enum import Enum
 import socket
@@ -97,16 +99,14 @@ class CustomProtocolServer:
         return self.pack_message(MessageType.ERROR, b"User not found")
 
     def handle_list_accounts(self, payload: bytes) -> bytes:
-        sender, pattern = payload.decode().split(':', 1)
+        pattern = payload.decode()
         matching_accounts = []
         for username in self.accounts.keys():
             if pattern in username:
                 _, logged_in, _ = self.accounts[username]
                 status = "online" if logged_in else "offline"
-                unread_count = sum(1 for msg in self.messages[username] 
-                                 if not msg.read and msg.sender == sender)
-                matching_accounts.append(f"{username}:{status}:{unread_count}")
-        return self.pack_message(MessageType.SUCCESS, '\n'.join(matching_accounts).encode())
+                matching_accounts.append(f"{username}:{status}")
+        return self.pack_message(MessageType.SUCCESS, ','.join(matching_accounts).encode())
 
     def handle_send_message(self, payload: bytes) -> bytes:
         sender, recipient, message = payload.decode().split(':', 2)
@@ -123,6 +123,7 @@ class CustomProtocolServer:
         self.next_message_id += 1
         self.messages[recipient].append(chat_message)
 
+        # If recipient is online, send immediate notification
         if recipient in self.active_connections:
             try:
                 notification = self.pack_message(
@@ -141,10 +142,12 @@ class CustomProtocolServer:
         if username not in self.messages:
             return self.pack_message(MessageType.ERROR, b"User not found")
 
-        messages = self.messages[username][-count:]
-        messages_data = []
-        for msg in messages:
+        unread_messages = [msg for msg in self.messages[username] if not msg.read][:count]
+        for msg in unread_messages:
             msg.read = True
+
+        messages_data = []
+        for msg in unread_messages:
             messages_data.append(f"{msg.id}:{msg.sender}:{msg.timestamp}:{msg.content}")
 
         return self.pack_message(MessageType.SUCCESS, '\n'.join(messages_data).encode())
@@ -327,12 +330,9 @@ class CustomProtocolClient:
         return response.payload.decode()
 
     def list_accounts(self, pattern: str = "") -> List[str]:
-        if not self.current_user:
-            return []
-        payload = f"{self.current_user}:{pattern}".encode()
-        self.socket.send(self.pack_message(MessageType.LIST_ACCOUNTS, payload))
+        self.socket.send(self.pack_message(MessageType.LIST_ACCOUNTS, pattern.encode()))
         response = self.receive_queue.get()
-        return response.payload.decode().split('\n') if response.payload else []
+        return response.payload.decode().split(',') if response.payload else []
 
     def send_message(self, recipient: str, message: str) -> str:
         if not self.current_user:
@@ -342,16 +342,25 @@ class CustomProtocolClient:
         response = self.receive_queue.get()
         return response.payload.decode()
 
-    def read_messages(self, count: Optional[int] = None) -> List[str]:
+    def read_messages(self, count: Optional[int] = None) -> List[ChatMessage]:
         if not self.current_user:
-            return []
+            return "Not logged in"
         if count is None:
             count = self.settings['messages_per_fetch']
         payload = f"{self.current_user}:{count}".encode()
         self.socket.send(self.pack_message(MessageType.READ_MESSAGES, payload))
         response = self.receive_queue.get()
-        messages = response.payload.decode().split('\n') if response.payload else []
-        return [msg for msg in messages if msg]  # Filter out empty strings
+        return response.payload.decode().split('\n') if response.payload else []
+
+    # def delete_messages(self, message_ids: List[int]) -> str:
+    #     if not self.current_user:
+    #         return "Not logged in"
+    #     payload = f"{self.current_user}:{','.join(map(str, message_ids))}".encode()
+    #     self.socket.send(self.pack_message(MessageType.DELETE_MESSAGES, payload))
+    #     response = self.receive_queue.get()
+    #     return response.payload.decode
+    
+    # [Previous code remains the same until the CustomProtocolClient class...]
 
     def delete_messages(self, message_ids: List[int]) -> str:
         if not self.current_user:
@@ -388,5 +397,5 @@ class CustomProtocolClient:
 
 if __name__ == "__main__":
     # Example server usage
-    server = CustomProtocolServer("localhost", 50002)
+    server = CustomProtocolServer("localhost", 50000)
     server.start()

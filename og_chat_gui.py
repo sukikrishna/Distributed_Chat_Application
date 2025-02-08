@@ -1,5 +1,3 @@
-#chat_gui.py
-
 import tkinter as tk
 from tkinter import ttk, messagebox, scrolledtext
 import json
@@ -19,7 +17,7 @@ class ChatGUI:
         
         # Initialize connection parameters
         self.host = "localhost"
-        self.port = 50002
+        self.port = 50000
         
         # Load config if provided
         if config_file:
@@ -32,7 +30,6 @@ class ChatGUI:
         self.current_chat_user = None
         self.message_update_thread = None
         self.message_update_active = False
-        self.chat_history = {}  # Store chat history for each user
         
         self.setup_gui()
         self.connect_to_server()
@@ -100,79 +97,70 @@ class ChatGUI:
         
     def setup_accounts_frame(self):
         """Set up the accounts listing frame"""
-        # Search frame
-        search_frame = ttk.Frame(self.accounts_frame)
-        search_frame.grid(row=0, column=0, columnspan=2, sticky=(tk.W, tk.E), pady=5)
-        
-        ttk.Label(search_frame, text="Search:").pack(side=tk.LEFT, padx=5)
+        # Search field
+        ttk.Label(self.accounts_frame, text="Search:").grid(row=0, column=0, pady=5)
         self.search_var = tk.StringVar()
-        search_entry = ttk.Entry(search_frame, textvariable=self.search_var)
-        search_entry.pack(side=tk.LEFT, fill=tk.X, expand=True, padx=5)
-        ttk.Button(search_frame, text="Search", command=self.search_accounts).pack(side=tk.LEFT, padx=5)
+        search_entry = ttk.Entry(self.accounts_frame, textvariable=self.search_var)
+        search_entry.grid(row=0, column=1, sticky=(tk.W, tk.E), pady=5)
+        ttk.Button(self.accounts_frame, text="Search", command=self.search_accounts).grid(row=0, column=2, pady=5)
         
-        # Accounts list with more details
-        columns = ('username', 'status', 'unread')
-        self.accounts_tree = ttk.Treeview(self.accounts_frame, columns=columns, show='headings')
-        
-        # Define column headings
-        self.accounts_tree.heading('username', text='Username')
-        self.accounts_tree.heading('status', text='Status')
-        self.accounts_tree.heading('unread', text='Unread Messages')
-        
-        # Define column widths
-        self.accounts_tree.column('username', width=150)
-        self.accounts_tree.column('status', width=100)
-        self.accounts_tree.column('unread', width=100)
-        
-        self.accounts_tree.grid(row=1, column=0, columnspan=2, sticky=(tk.W, tk.E, tk.N, tk.S), pady=5)
+        # Accounts list
+        self.accounts_tree = ttk.Treeview(self.accounts_frame, columns=('Status',), show='headings')
+        self.accounts_tree.heading('Status', text='Status')
+        self.accounts_tree.grid(row=1, column=0, columnspan=3, sticky=(tk.W, tk.E, tk.N, tk.S), pady=5)
         
         # Scrollbar for accounts list
         scrollbar = ttk.Scrollbar(self.accounts_frame, orient=tk.VERTICAL, command=self.accounts_tree.yview)
-        scrollbar.grid(row=1, column=2, sticky=(tk.N, tk.S))
+        scrollbar.grid(row=1, column=3, sticky=(tk.N, tk.S))
         self.accounts_tree.configure(yscrollcommand=scrollbar.set)
         
-        # Buttons frame
-        buttons_frame = ttk.Frame(self.accounts_frame)
-        buttons_frame.grid(row=2, column=0, columnspan=2, pady=5)
+        # Button to start chat
+        ttk.Button(self.accounts_frame, text="Start Chat", command=self.start_chat).grid(row=2, column=0, columnspan=3, pady=5)
         
-        ttk.Button(buttons_frame, text="Start Chat", command=self.start_chat).pack(side=tk.LEFT, padx=5)
-        ttk.Button(buttons_frame, text="Refresh", command=self.search_accounts).pack(side=tk.LEFT, padx=5)
-        
-        self.accounts_frame.columnconfigure(0, weight=1)
+        self.accounts_frame.columnconfigure(1, weight=1)
         self.accounts_frame.rowconfigure(1, weight=1)
         
     def setup_chat_frame(self):
         """Set up the chat frame"""
-        # Chat header
-        self.chat_header = ttk.Label(self.chat_frame, text="No chat selected", font=('', 12, 'bold'))
-        self.chat_header.grid(row=0, column=0, columnspan=2, pady=5, sticky=(tk.W))
+        # Split frame into two parts
+        chat_paned = ttk.PanedWindow(self.chat_frame, orient=tk.HORIZONTAL)
+        chat_paned.grid(row=0, column=0, sticky=(tk.W, tk.E, tk.N, tk.S))
+        
+        # Left side - Messages
+        left_frame = ttk.Frame(chat_paned)
+        chat_paned.add(left_frame, weight=3)
         
         # Message display area
-        self.message_area = scrolledtext.ScrolledText(self.chat_frame, wrap=tk.WORD)
-        self.message_area.grid(row=1, column=0, columnspan=2, sticky=(tk.W, tk.E, tk.N, tk.S), pady=5)
+        self.message_area = scrolledtext.ScrolledText(left_frame, wrap=tk.WORD)
+        self.message_area.grid(row=0, column=0, columnspan=2, sticky=(tk.W, tk.E, tk.N, tk.S), pady=5)
         
         # Message input area
-        self.message_input = scrolledtext.ScrolledText(self.chat_frame, wrap=tk.WORD, height=4)
-        self.message_input.grid(row=2, column=0, sticky=(tk.W, tk.E), pady=5)
+        self.message_input = scrolledtext.ScrolledText(left_frame, wrap=tk.WORD, height=4)
+        self.message_input.grid(row=1, column=0, sticky=(tk.W, tk.E), pady=5)
         
         # Send button
-        send_button = ttk.Button(self.chat_frame, text="Send", command=self.send_message)
-        send_button.grid(row=2, column=1, pady=5, padx=5)
+        ttk.Button(left_frame, text="Send", command=self.send_message).grid(row=1, column=1, pady=5)
         
-        # Message management
-        self.message_list = ttk.Treeview(self.chat_frame, columns=('time', 'content'), show='headings', height=5)
-        self.message_list.heading('time', text='Time')
-        self.message_list.heading('content', text='Message')
-        self.message_list.column('time', width=150)
-        self.message_list.column('content', width=400)
-        self.message_list.grid(row=3, column=0, columnspan=2, sticky=(tk.W, tk.E), pady=5)
+        # Right side - Message management
+        right_frame = ttk.Frame(chat_paned)
+        chat_paned.add(right_frame, weight=1)
+        
+        # Message list for deletion
+        self.message_list = ttk.Treeview(right_frame, columns=('Sender', 'Time'), show='headings')
+        self.message_list.heading('Sender', text='Sender')
+        self.message_list.heading('Time', text='Time')
+        self.message_list.grid(row=0, column=0, sticky=(tk.W, tk.E, tk.N, tk.S), pady=5)
         
         # Delete button
-        ttk.Button(self.chat_frame, text="Delete Selected", command=self.delete_messages).grid(row=4, column=0, columnspan=2, pady=5)
+        ttk.Button(right_frame, text="Delete Selected", command=self.delete_messages).grid(row=1, column=0, pady=5)
         
         # Configure weights
         self.chat_frame.columnconfigure(0, weight=1)
-        self.chat_frame.rowconfigure(1, weight=1)
+        self.chat_frame.rowconfigure(0, weight=1)
+        left_frame.columnconfigure(0, weight=1)
+        left_frame.rowconfigure(0, weight=1)
+        right_frame.columnconfigure(0, weight=1)
+        right_frame.rowconfigure(0, weight=1)
         
     def setup_settings_frame(self):
         """Set up the settings frame"""
@@ -261,15 +249,11 @@ class ChatGUI:
         for item in self.accounts_tree.get_children():
             self.accounts_tree.delete(item)
             
-        # Add accounts to tree with more details
+        # Add accounts to tree
         for account_info in accounts:
             if ':' in account_info:
                 username, status = account_info.split(':')
-                # Get unread message count for this user
-                unread_count = 0
-                if username in self.chat_history:
-                    unread_count = sum(1 for msg in self.chat_history[username] if not msg.get('read', False))
-                self.accounts_tree.insert('', tk.END, values=(username, status, unread_count))
+                self.accounts_tree.insert('', tk.END, text=username, values=(status,))
                 
     def start_chat(self):
         """Start chat with selected user"""
@@ -278,12 +262,11 @@ class ChatGUI:
             messagebox.showwarning("Warning", "Please select a user to chat with")
             return
             
-        self.current_chat_user = self.accounts_tree.item(selection[0])['values'][0]
-        self.chat_header.config(text=f"Chat with {self.current_chat_user}")
+        self.current_chat_user = self.accounts_tree.item(selection[0])['text']
         self.notebook.select(2)  # Switch to chat tab
         self.message_area.delete('1.0', tk.END)
         self.refresh_messages()
-
+        
     def send_message(self):
         """Send message to current chat user"""
         if not self.current_chat_user:
@@ -303,48 +286,26 @@ class ChatGUI:
             
     def refresh_messages(self):
         """Refresh messages in chat and message list"""
-        if not self.current_chat_user:
-            return
-            
         messages = self.client.read_messages()
         
-        # Clear message displays
-        self.message_area.delete('1.0', tk.END)
+        # Clear message list
         for item in self.message_list.get_children():
             self.message_list.delete(item)
             
         # Process and display messages
         for message in messages:
-            if message and ':' in message:
-                try:
-                    msg_parts = message.split(':', 3)
-                    if len(msg_parts) >= 4:
-                        msg_id, sender, timestamp, content = msg_parts
-                        # Convert timestamp to readable format
-                        time_str = datetime.fromtimestamp(float(timestamp)).strftime('%Y-%m-%d %H:%M')
-                        
-                        # Add to message area
-                        self.message_area.insert(tk.END, f"{sender} ({time_str}):\n{content}\n\n")
-                        
-                        # Add to message list for deletion
-                        self.message_list.insert('', tk.END, iid=msg_id, 
-                                               values=(time_str, f"{content[:50]}..." if len(content) > 50 else content))
-                        
-                        # Update chat history
-                        if sender not in self.chat_history:
-                            self.chat_history[sender] = []
-                        self.chat_history[sender].append({
-                            'id': msg_id,
-                            'content': content,
-                            'timestamp': timestamp,
-                            'read': True
-                        })
-                except ValueError:
-                    print(f"Error processing message: {message}")
-                    continue
+            if message:
+                msg_id, sender, timestamp, content = message.split(':', 3)
+                # Convert timestamp to readable format
+                time_str = datetime.fromtimestamp(float(timestamp)).strftime('%Y-%m-%d %H:%M')
+                
+                # Add to message area
+                self.message_area.insert(tk.END, f"{sender} ({time_str}):\n{content}\n\n")
+                
+                # Add to message list for deletion
+                self.message_list.insert('', tk.END, iid=msg_id, values=(sender, time_str))
                 
         self.message_area.see(tk.END)
-        self.search_accounts()  # Refresh account list to update unread counts
         
     def delete_messages(self):
         """Delete selected messages"""
