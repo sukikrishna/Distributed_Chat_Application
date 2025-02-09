@@ -55,6 +55,7 @@ class ChatClient:
             
         self.username = None
         self.known_users = set()  # Track known users for dropdown
+        self.has_unread_messages = False  # Track if there are unread messages
         self.setup_gui()
         self.message_check_thread = None
         self.running = True
@@ -136,8 +137,10 @@ class ChatClient:
         self.msg_count.pack()
         
         ttk.Button(controls, text="Check New Messages", 
-                  command=self.refresh_messages).pack(fill='x', pady=5)
-        
+                command=self.refresh_unread_messages).pack(fill='x', pady=5)
+        ttk.Button(controls, text="View Message History", 
+                command=self.refresh_messages).pack(fill='x', pady=5)
+    
         ttk.Button(controls, text="Delete Selected", 
                   command=self.delete_selected_messages).pack(fill='x', pady=5)
 
@@ -169,11 +172,9 @@ class ChatClient:
         ttk.Button(search_frame, text="Search", 
                 command=self.search_accounts).pack(side='right', padx=5)
 
-        # Create container frame for Treeview and scrollbar
         tree_frame = ttk.Frame(self.accounts_frame)
         tree_frame.pack(expand=True, fill='both', padx=5, pady=5)
 
-        # Create Treeview and scrollbars
         self.accounts_list = ttk.Treeview(tree_frame, 
                                         columns=('username', 'status'),
                                         show='headings',
@@ -184,26 +185,21 @@ class ChatClient:
         xscroll = ttk.Scrollbar(tree_frame, orient='horizontal', 
                             command=self.accounts_list.xview)
         
-        # Configure scrollbars for Treeview
         self.accounts_list.configure(yscrollcommand=yscroll.set, 
                                 xscrollcommand=xscroll.set)
 
-        # Set column headings and widths
         self.accounts_list.heading('username', text='Username')
         self.accounts_list.heading('status', text='Status')
         self.accounts_list.column('username', width=150, minwidth=100)
         self.accounts_list.column('status', width=100, minwidth=70)
 
-        # Grid layout for Treeview and scrollbars
         self.accounts_list.grid(row=0, column=0, sticky='nsew')
         yscroll.grid(row=0, column=1, sticky='ns')
         xscroll.grid(row=1, column=0, sticky='ew')
 
-        # Configure grid weights
         tree_frame.grid_rowconfigure(0, weight=1)
         tree_frame.grid_columnconfigure(0, weight=1)
 
-        # Bind double-click event
         self.accounts_list.bind('<Double-1>', self.on_user_select)
         
         send_frame = ttk.LabelFrame(self.accounts_frame, text="Send Message", padding=5)
@@ -221,7 +217,6 @@ class ChatClient:
         ttk.Button(send_frame, text="Send", 
                 command=self.send_message).pack(fill='x', pady=5)
 
-        # Status frame at bottom
         status_frame = ttk.Frame(self.accounts_frame)
         status_frame.pack(fill='x', padx=5, pady=5)
         self.user_count_var = tk.StringVar(value="Users found: 0")
@@ -305,15 +300,29 @@ class ChatClient:
                         widget.destroy()
 
     def refresh_messages(self):
+        """Get all messages for history view"""
         try:
             count = int(self.msg_count.get())
         except ValueError:
             count = self.config.get("message_fetch_limit")
-            
+                
         self.send_command({
             "cmd": "get_messages",
             "count": count
         })
+
+    def refresh_unread_messages(self):
+        """Get only undelivered messages"""
+        try:
+            count = int(self.msg_count.get())
+        except ValueError:
+            count = self.config.get("message_fetch_limit") 
+                
+        self.send_command({
+            "cmd": "get_undelivered",
+            "count": count
+        })
+        self.has_unread_messages = False
 
     def on_user_select(self, event):
         selection = self.accounts_list.selection()
@@ -389,19 +398,20 @@ class ChatClient:
                     self.status_var.set(f"Logged in as: {self.username}")
                     self.notebook.select(1)
                     messagebox.showinfo("Messages", f"You have {message['unread']} unread messages")
-                    self.refresh_messages()
+                    self.has_unread_messages = True
                 else:
                     messagebox.showinfo("Account Created", "Account created successfully! Please log in to continue.")
             elif message.get("message_type") == "new_message":
-                self.clear_messages()
-                new_message = message["message"]
-                frame = MessageFrame(self.messages_frame, new_message)
-                frame.message_id = new_message["id"]
-                frame.pack(fill='x', padx=5, pady=2)
-                self.refresh_messages()
-                
                 current_tab = self.notebook.select()
-                if self.notebook.index(current_tab) != 2:
+                chat_tab_active = self.notebook.index(current_tab) == 2
+                
+                if chat_tab_active:
+                    new_message = message["message"]
+                    frame = MessageFrame(self.messages_frame, new_message)
+                    frame.message_id = new_message["id"]
+                    frame.pack(fill='x', padx=5, pady=2)
+                else:
+                    self.has_unread_messages = True
                     messagebox.showinfo("New Message", 
                         f"New message from {message['message']['from']}")
                     
@@ -445,35 +455,18 @@ class ChatClient:
             messagebox.showerror("Error", "Connection to server lost")
             self.root.destroy()
 
-    # Continue from previous implementation...
-
     def run(self):
-        # Set up periodic message checking (every 5 seconds)
-        def check_messages_periodically():
-            if self.username and self.running:
-                self.refresh_messages()
-                self.root.after(1000, check_messages_periodically)
-        
         def check_users_periodically():
             if self.username and self.running:
                 self.search_accounts()
                 self.root.after(1000, check_users_periodically)
 
-        # Start periodic checks
-        self.root.after(1000, check_messages_periodically)
         self.root.after(1000, check_users_periodically)
-        
-        # Set up proper cleanup on window close
         self.root.protocol("WM_DELETE_WINDOW", self.on_closing)
-        
-        # Initial user list population
         self.search_accounts()
-        
-        # Start the main event loop
         self.root.mainloop()
 
     def on_closing(self):
-        """Handle cleanup when the window is closed."""
         self.running = False
         if self.username:
             try:
@@ -487,9 +480,6 @@ class ChatClient:
         self.root.destroy()
 
 def main():
-    """Main entry point for the chat client."""
-
-    # Create and run the client
     client = ChatClient()
     client.run()
 

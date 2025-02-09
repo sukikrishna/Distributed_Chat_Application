@@ -196,13 +196,13 @@ class ChatServer:
                                 [m for m in messages if not m["read"] and m.get("delivered_while_offline", True)],
                                 key=lambda x: x["timestamp"],
                                 reverse=True
-                            )
+                            )[:count]  # Limit to requested count
                             # Mark as read
                             for m in undelivered:
                                 m["read"] = True
                                     
                             response = {"success": True, "messages": undelivered}
-                            print(f"User {current_user} retrieved {len(unread)} messages")
+                            print(f"User {current_user} retrieved {len(undelivered)} messages")
                     elif cmd == "delete_messages":
                         if not current_user:
                             response = {"success": False, "message": "Not logged in"}
