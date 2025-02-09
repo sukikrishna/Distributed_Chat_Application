@@ -159,7 +159,21 @@ class ChatClient:
                   command=self.send_message).pack(fill='x', pady=5)
                   
         ttk.Button(right_frame, text="Logout",
-                  command=self.logout).pack(fill='x', pady=5)
+            command=self.logout).pack(fill='x', pady=5)
+
+        # Adjusting the delete account section to fit within right_frame
+        delete_frame = ttk.LabelFrame(right_frame, text="Delete Account", padding=5)
+        delete_frame.pack(fill='x', padx=5, pady=5)
+
+        ttk.Label(delete_frame, text="Confirm password:").pack(anchor='w', padx=5, pady=2)
+        self.delete_password = ttk.Entry(delete_frame, show="*")
+        self.delete_password.pack(fill='x', padx=5, pady=5)
+
+        ttk.Button(delete_frame, text="Delete Account",
+                  command=self.delete_account).pack(fill='x', padx=5, pady=5)
+
+        
+
                   
     def setup_accounts_frame(self):
         controls_frame = ttk.Frame(self.accounts_frame)
@@ -202,15 +216,15 @@ class ChatClient:
 
         self.accounts_list.pack(expand=True, fill='both', padx=5, pady=5)
 
-        delete_frame = ttk.LabelFrame(self.accounts_frame, text="Delete Account", padding=5)
-        delete_frame.pack(fill='x', padx=5, pady=5)
+        # delete_frame = ttk.LabelFrame(self.accounts_frame, text="Delete Account", padding=5)
+        # delete_frame.pack(fill='x', padx=5, pady=5)
 
-        ttk.Label(delete_frame, text="Confirm password:").pack()
-        self.delete_password = ttk.Entry(delete_frame, show="*")
-        self.delete_password.pack(fill='x', pady=5)
+        # ttk.Label(delete_frame, text="Confirm password:").pack()
+        # self.delete_password = ttk.Entry(delete_frame, show="*")
+        # self.delete_password.pack(fill='x', pady=5)
 
-        ttk.Button(delete_frame, text="Delete Account",
-                  command=self.delete_account).pack(fill='x')
+        # ttk.Button(delete_frame, text="Delete Account",
+        #           command=self.delete_account).pack(fill='x')
 
         # Grid layout for Treeview and scrollbars
         self.accounts_list.grid(row=0, column=0, sticky='nsew')
