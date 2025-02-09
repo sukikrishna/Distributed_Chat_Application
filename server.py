@@ -34,8 +34,9 @@ class ChatServer:
         return True
 
     def get_unread_count(self, username):
-        """Get count of unread messages for a user."""
-        return len([msg for msg in self.messages[username] if not msg["read"]])
+        """Get count of messages received while user was offline."""
+        return len([msg for msg in self.messages[username] 
+                   if not msg["read"] and msg.get("delivered_while_offline", True)])
 
     def handle_client(self, client_socket, address):
         print(f"New connection from {address}")
@@ -131,7 +132,8 @@ class ChatServer:
                                     "from": current_user,
                                     "content": content,
                                     "timestamp": time.time(),
-                                    "read": False
+                                    "read": False,
+                                    "delivered_while_offline": recipient not in self.active_users
                                 }
                                 self.message_id_counter += 1
                                 self.messages[recipient].append(message)
@@ -155,13 +157,19 @@ class ChatServer:
                         else:
                             count = msg.get("count", 10)
                             messages = self.messages[current_user]
-                            unread = sorted(
-                                [m for m in messages if not m["read"]], 
-                                key=lambda x: x["timestamp"]
+                            # Get all messages, sorted by timestamp
+                            sorted_messages = sorted(
+                                messages,
+                                key=lambda x: x["timestamp"],
+                                reverse=True
                             )[:count]
-                            for m in unread:
-                                m["read"] = True
-                            response = {"success": True, "messages": unread}
+                            
+                            # Mark messages as read
+                            for m in sorted_messages:
+                                if not m["read"]:
+                                    m["read"] = True
+                                    
+                            response = {"success": True, "messages": sorted_messages}
 
                     elif cmd == "delete_messages":
                         if not current_user:
