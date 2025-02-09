@@ -2,8 +2,9 @@ import socket
 import json
 import threading
 import tkinter as tk
-from tkinter import ttk, messagebox
 import time
+from tkinter import ttk, messagebox
+from config import Config
 
 class MessageFrame(ttk.Frame):
     def __init__(self, parent, message_data, on_delete=None):
@@ -39,14 +40,17 @@ class MessageFrame(ttk.Frame):
         content.pack(fill='x', pady=(5, 0))
 
 class ChatClient:
-    def __init__(self, host='localhost', port=56789):
+    def __init__(self):
         self.root = tk.Tk()
         self.root.title("Chat Application")
         self.root.geometry("1000x800")
         
+        self.config = Config()
+        self.host = self.config.get("host")
+        self.port = self.config.get("port")
         self.socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         try:
-            self.socket.connect((host, port))
+            self.socket.connect((self.host, self.port))
         except ConnectionRefusedError:
             messagebox.showerror("Error", "Could not connect to server")
             self.root.destroy()
@@ -420,18 +424,9 @@ class ChatClient:
 
 def main():
     """Main entry point for the chat client."""
-    import argparse
-    
-    parser = argparse.ArgumentParser(description='Chat Client')
-    parser.add_argument('--host', default='localhost',
-                        help='Server host address')
-    parser.add_argument('--port', type=int, default=56789,
-                        help='Server port number')
-    
-    args = parser.parse_args()
-    
+
     # Create and run the client
-    client = ChatClient(host=args.host, port=args.port)
+    client = ChatClient()
     client.run()
 
 if __name__ == "__main__":

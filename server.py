@@ -6,11 +6,13 @@ import re
 import fnmatch
 from collections import defaultdict
 import time
+from config import Config
 
 class ChatServer:
-    def __init__(self, host='localhost', port=56789):
-        self.host = host
-        self.port = port
+    def __init__(self, host=None, port=None):
+        config = Config()
+        self.host = host or config.get("host")
+        self.port = port or config.get("port")
         self.users = {}  # username -> (password_hash, settings)
         self.messages = defaultdict(list)  # username -> [messages]
         self.active_users = {}  # username -> connection
@@ -62,11 +64,13 @@ class ChatServer:
                                 "success": False,
                                 "message": "Password must be at least 8 characters with 1 number and 1 uppercase letter"
                             }
+                            print(f"Failed account creation attempt from {address} (Username: {username}) - Password requirements not met")
                         elif username in self.users:
                             response = {
                                 "success": False,
                                 "message": "Username already exists"
                             }
+                            print(f"Failed account creation attempt from {address} (Username: {username}) - Username already exists")
                         else:
                             self.users[username] = (self.hash_password(password), {})
                             self.messages[username] = []
@@ -75,6 +79,7 @@ class ChatServer:
                                 "message": "Account created successfully",
                                 "username": username
                             }
+                            print(f"New account created from {address} (User: {username})")
 
                     elif cmd == "login":
                         username = msg["username"]
@@ -85,26 +90,30 @@ class ChatServer:
                                 "success": False,
                                 "message": "User not found"
                             }
+                            print(f"Failed login attempt from {address} (Username: {username}) - User not found")
                         elif self.users[username][0] != self.hash_password(password):
                             response = {
                                 "success": False,
                                 "message": "Invalid password"
                             }
+                            print(f"Failed login attempt from {address} (Username: {username}) - Incorrect password")
                         elif username in self.active_users:
                             response = {
                                 "success": False,
                                 "message": "User already logged in"
                             }
+                            print(f"Failed login attempt from {address} (Username: {username}) - Already logged in")
                         else:
                             current_user = username
                             self.active_users[username] = client_socket
                             unread_count = self.get_unread_count(username)
                             response = {
                                 "success": True,
-                                "message": f"Login successful",
+                                "message": "Login successful",
                                 "username": username,
                                 "unread": unread_count
                             }
+                            print(f"User logged in from {address} (Username: {username})")
 
                     elif cmd == "list":
                         pattern = msg.get("pattern", "*")
@@ -126,6 +135,7 @@ class ChatServer:
                             
                             if recipient not in self.users:
                                 response = {"success": False, "message": "Recipient not found"}
+                                print(f"Failed message send from {current_user} to {recipient} - Recipient not found")
                             else:
                                 message = {
                                     "id": self.message_id_counter,
@@ -150,6 +160,7 @@ class ChatServer:
                                         pass  # Handle disconnected socket
                                 
                                 response = {"success": True, "message": "Message sent"}
+                                print(f"Message sent from {current_user} to {recipient}")
 
                     elif cmd == "get_messages":
                         if not current_user:
@@ -187,7 +198,7 @@ class ChatServer:
                                 m["read"] = True
                                     
                             response = {"success": True, "messages": undelivered}
-
+                            print(f"User {current_user} retrieved {len(unread)} messages")
                     elif cmd == "delete_messages":
                         if not current_user:
                             response = {"success": False, "message": "Not logged in"}
@@ -198,6 +209,7 @@ class ChatServer:
                                 if m["id"] not in msg_ids
                             ]
                             response = {"success": True, "message": "Messages deleted"}
+                            print(f"User {current_user} deleted messages {msg_ids}")
 
                     elif cmd == "delete_account":
                         if not current_user:
@@ -206,19 +218,23 @@ class ChatServer:
                             password = msg["password"]
                             if self.users[current_user][0] != self.hash_password(password):
                                 response = {"success": False, "message": "Invalid password"}
+                                print(f"Failed account deletion for {current_user} - Incorrect password")
                             elif any(not m["read"] for m in self.messages[current_user]):
                                 response = {"success": False, "message": "Cannot delete account with unread messages"}
+                                print(f"Failed account deletion for {current_user} - Unread messages exist")
                             else:
                                 del self.users[current_user]
                                 del self.messages[current_user]
                                 if current_user in self.active_users:
                                     del self.active_users[current_user]
+                                print(f"Account deleted: {current_user}")
                                 current_user = None
                                 response = {"success": True, "message": "Account deleted"}
 
                     elif cmd == "logout":
-                        if current_user and current_user in self.active_users:
+                        if current_user in self.active_users:
                             del self.active_users[current_user]
+                        print(f"User logged out: {current_user}")
                         current_user = None
                         response = {"success": True, "message": "Logged out successfully"}
 
@@ -228,26 +244,63 @@ class ChatServer:
                 print(f"Error handling client: {e}")
                 break
 
-        if current_user and current_user in self.active_users:
+        if current_user in self.active_users:
             del self.active_users[current_user]
         client_socket.close()
 
-    def start(self):
-        self.server = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        self.server.bind((self.host, self.port))
-        self.server.listen(5)
-        self.running = True
-        print(f"Server running on {self.host}:{self.port}")
-
-        while self.running:
+    def find_free_port(self, start_port):
+        port = start_port
+        max_port = 65535
+        
+        while port <= max_port:
             try:
-                client, addr = self.server.accept()
-                threading.Thread(target=self.handle_client, 
-                               args=(client, addr), 
-                               daemon=True).start()
-            except Exception as e:
-                if self.running:
+                test_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+                test_socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+                test_socket.bind((self.host, port))
+                test_socket.close()
+                return port
+            except OSError:
+                port += 1
+            finally:
+                test_socket.close()
+        raise RuntimeError("No free ports available")
+
+    def start(self):
+        # Find next available port if needed
+        try:
+            self.port = self.find_free_port(self.port)
+            # Update config with the new port
+            config = Config()
+            config.update("port", self.port)
+        except RuntimeError as e:
+            print(f"Server error: {e}")
+            return
+
+        self.server = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        self.server.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+        self.server.settimeout(1)
+
+        try:
+            self.server.bind((self.host, self.port))
+            self.server.listen(5)
+            self.running = True
+            print(f"Server started on {self.host}:{self.port}")
+
+            while self.running:
+                try:
+                    client_socket, address = self.server.accept()
+                    client_socket.settimeout(None)
+                    threading.Thread(target=self.handle_client, 
+                                    args=(client_socket, address), 
+                                    daemon=True).start()
+                except socket.timeout:
+                    continue
+                except Exception as e:
                     print(f"Error accepting connection: {e}")
+                    continue
+        finally:
+            self.server.close()
+
 
     def stop(self):
         self.running = False
