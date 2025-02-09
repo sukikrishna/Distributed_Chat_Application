@@ -292,5 +292,5 @@ class CustomProtocolServer:
                 continue
 
 if __name__ == "__main__":
-    server = CustomProtocolServer("127.0.0.1", 50021)
+    server = CustomProtocolServer("127.0.0.1", 50022)
     server.start()

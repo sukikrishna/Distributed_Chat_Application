@@ -12,7 +12,7 @@ class ChatGUI:
         self.root.geometry("1000x600")
 
         self.host = "127.0.0.1"
-        self.port = 50021
+        self.port = 50022
         self.username = None
         self.client_socket = None
         self.current_chat = None
@@ -146,9 +146,11 @@ class ChatGUI:
             
             response = self.client_socket.recv(1024).decode()
             if response == "SUCCESS":
+                parts = response.split(":")
+                unread_count = int(parts[1]) if len(parts) > 1 else 0
                 self.username = username
                 self.logged_in = True
-                messagebox.showinfo("Success", "Logged in successfully")
+                messagebox.showinfo("Success", f"Logged in successfully\nYou have {unread_count} unread messages")
                 self.notebook.select(1)  # Switch to contacts tab
                 self.update_contacts()
                 threading.Thread(target=self.receive_messages, daemon=True).start()
