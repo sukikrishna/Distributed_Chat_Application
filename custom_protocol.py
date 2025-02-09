@@ -80,18 +80,43 @@ class CustomProtocolServer:
     def handle_client(self, client_socket):
         try:
             init_message = client_socket.recv(1024).decode()
-            
+
             if init_message.startswith("GROUP_CHAT:"):
                 username = init_message.split(":")[1]
+                print(f"New connection from {client_socket.getpeername()} (Group Chat User: {username})")
                 self.handle_group_chat_client(username, client_socket)
+
             elif init_message.startswith(("CREATE:", "LOGIN:")):
-                self.handle_account_operation(init_message, client_socket)
+                success, username = self.handle_account_operation(init_message, client_socket)
+                
+                if success:
+                    if init_message.startswith("CREATE:"):
+                        print(f"New account created from {client_socket.getpeername()} (User: {username})")
+                    else:  # LOGIN case
+                        print(f"New connection from {client_socket.getpeername()} (Authenticated User: {username})")
+                else:
+                    if init_message.startswith("CREATE:"):
+                        print(f"Failed account creation attempt from {client_socket.getpeername()}")
+                    else:  # LOGIN case
+                        print(f"Failed login attempt from {client_socket.getpeername()}")
+
+                    client_socket.close()  # Close the socket on failure
+
             elif init_message.startswith("DELETE_ACCOUNT:"):
                 self.handle_delete_account(init_message, client_socket)
+
+            elif init_message.startswith("LOGOUT:"):
+                username = init_message.split(":")[1]
+                if username in self.active_connections:
+                    del self.active_connections[username]
+                    print(f"User {username} logged out.")
+                client_socket.close()  # Close the connection
+
             else:
                 username = init_message
+                print(f"New connection from {client_socket.getpeername()} (Private Chat User: {username})")
                 self.handle_private_chat_client(username, client_socket)
-                
+
         except Exception as e:
             print(f"Error handling client: {e}")
             client_socket.close()
@@ -105,18 +130,22 @@ class CustomProtocolServer:
         if operation == "CREATE":
             if self.create_account(username, password):
                 client_socket.send("SUCCESS".encode())
+                return True, username  # Return success
             else:
                 client_socket.send("Account already exists".encode())
-                
+                return False, None  # Return failure
+
         elif operation == "LOGIN":
             if self.login(username, password):
                 client_socket.send("SUCCESS".encode())
                 self.active_connections[username] = client_socket
                 threading.Thread(target=self.handle_private_chat_client, 
-                               args=(username, client_socket),
-                               daemon=True).start()
+                                args=(username, client_socket),
+                                daemon=True).start()
+                return True, username  # Return success
             else:
                 client_socket.send("Invalid username or password".encode())
+                return False, None  # Return failure
 
     def handle_private_chat_client(self, username: str, client_socket: socket.socket):
         self.active_connections[username] = client_socket
@@ -334,7 +363,6 @@ class CustomProtocolServer:
                 try:
                     client_socket, address = server_socket.accept()
                     client_socket.settimeout(None)
-                    print(f"New connection from {address}")
                     threading.Thread(target=self.handle_client, 
                                 args=(client_socket,),
                                 daemon=True).start()

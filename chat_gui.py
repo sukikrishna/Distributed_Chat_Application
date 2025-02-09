@@ -85,25 +85,22 @@ class ChatGUI:
         ttk.Button(self.login_frame, text="Create Account", command=self.create_account).pack(pady=5)
 
     def setup_contacts_frame(self):
-        # Search frame
         search_frame = ttk.Frame(self.contacts_frame)
         search_frame.pack(fill='x', pady=5)
         
         self.search_entry = ttk.Entry(search_frame)
         self.search_entry.pack(side='left', expand=True, fill='x', padx=(0,5))
-        ttk.Button(search_frame, text="Search", command=self.search_contacts).pack(side='right')
+        ttk.Button(search_frame, text="Search", command=self.update_contacts).pack(side='right')
         
-        # Contacts list
         self.contacts_tree = ttk.Treeview(self.contacts_frame, columns=('username', 'status', 'unread'), show='headings')
         self.contacts_tree.heading('username', text='Username')
         self.contacts_tree.heading('status', text='Status')
         self.contacts_tree.heading('unread', text='Unread')
         self.contacts_tree.pack(expand=True, fill='both', pady=5)
         
-        # Buttons
         btn_frame = ttk.Frame(self.contacts_frame)
         btn_frame.pack(fill='x')
-        ttk.Button(btn_frame, text="Refresh", command=self.search_contacts).pack(side='left', padx=5)
+        ttk.Button(btn_frame, text="Refresh", command=self.update_contacts).pack(side='left', padx=5)
         ttk.Button(btn_frame, text="Private Chat", command=self.start_chat).pack(side='left', padx=5)
         ttk.Button(btn_frame, text="Group Chat", command=self.start_group_chat).pack(side='left')
 
@@ -209,20 +206,26 @@ class ChatGUI:
         except Exception as e:
             messagebox.showerror("Error", f"Could not connect to server: {str(e)}")
 
-    def search_contacts(self):
-        pattern = self.search_entry.get()
-        self.client_socket.send("LIST_ACCOUNTS".encode())
-        response = self.client_socket.recv(1024).decode()
-        contacts = response.split(",")
-        
-        for item in self.contacts_tree.get_children():
-            self.contacts_tree.delete(item)
+    def update_contacts(self):
+        if not self.client_socket:
+            return
             
-        for contact in contacts:
-            if contact and contact != self.username and (not pattern or pattern in contact):
-                # For now, we'll set status as "online" and unread as 0
-                # You can enhance this by tracking actual status and unread counts
-                self.contacts_tree.insert('', 'end', values=(contact, "online", "0"))
+        try:
+            self.client_socket.send("LIST_ACCOUNTS".encode())
+            response = self.client_socket.recv(1024).decode()
+            contacts = response.split(",")
+            
+            for item in self.contacts_tree.get_children():
+                self.contacts_tree.delete(item)
+            
+            for contact in contacts:
+                if contact:
+                    username, status, unread = contact.split(":")
+                    if username != self.username:
+                        self.contacts_tree.insert('', 'end', values=(username, status, unread))
+                    
+        except Exception as e:
+            messagebox.showerror("Error", f"Could not update contacts: {str(e)}")
 
     def start_chat(self):
         if not self.logged_in:
@@ -239,7 +242,15 @@ class ChatGUI:
         self.is_group_chat = False
         self.chat_header.config(text=f"Chat with {recipient}")
         self.message_area.delete('1.0', tk.END)
+        
+        # Mark messages as read
+        try:
+            self.client_socket.send(f"READ_FROM:{recipient}".encode())
+        except:
+            pass
+            
         self.notebook.select(2)  # Switch to chat tab
+        self.update_contacts()  # Refresh contacts list to update unread count
 
     def start_group_chat(self):
         if not self.logged_in:
@@ -290,15 +301,22 @@ class ChatGUI:
                 if not message:
                     break
                 
-                if ': ' in message:
+                if message.startswith("STATUS_UPDATE:"):
+                    _, username, status = message.split(":")
+                    self.update_contacts()
+                elif message.startswith("UNREAD_UPDATE:"):
+                    self.update_contacts()
+                elif ': ' in message:
                     username = message.split(': ')[0]
-                    if username.startswith('['):  # Remove timestamp if present
+                    if username.startswith('['):
                         username = username.split('] ')[1]
                     
                     if username == self.username:
                         self.message_area.insert(tk.END, message + "\n", 'right')
                     else:
                         self.message_area.insert(tk.END, message + "\n", 'left')
+                        if self.current_chat != username:
+                            self.update_contacts()
                 else:
                     self.message_area.insert(tk.END, message + "\n")
                     
@@ -324,13 +342,16 @@ class ChatGUI:
             
 
     def delete_account(self):
-        """Delete user account"""
+        if not self.logged_in:
+            messagebox.showerror("Error", "Please login first")
+            return
+            
         if not messagebox.askyesno("Confirm", "Are you sure you want to delete your account? This cannot be undone."):
             return
 
         password = self.delete_password_var.get()
         if not password:
-            messagebox.showwarning("Warning", "Enter your password")
+            messagebox.showwarning("Warning", "Please enter your password")
             return
             
         try:
@@ -346,23 +367,34 @@ class ChatGUI:
                 messagebox.showerror("Error", response)
         except Exception as e:
             messagebox.showerror("Error", f"Connection error: {str(e)}")
-
+        
     def logout(self):
         if not self.logged_in:
             return
-            
+
         try:
-            if self.is_group_chat:
-                self.client_socket.send(f"LEAVE_GROUP:{self.username}".encode())
-                
-            message = f"LOGOUT:{self.username}"
-            self.client_socket.send(message.encode())
+            if self.client_socket:
+                # Check if the socket is still connected before sending messages
+                try:
+                    self.client_socket.send(b'')  # Send an empty byte to check connection
+                except (BrokenPipeError, ConnectionResetError):
+                    messagebox.showerror("Error", "Connection lost. You are logged out.")
+                    self.reset_state()
+                    return
+
+                if self.is_group_chat:
+                    self.client_socket.send(f"LEAVE_GROUP:{self.username}".encode())
+
+                message = f"LOGOUT:{self.username}"
+                self.client_socket.send(message.encode())
+
             self.reset_state()
             messagebox.showinfo("Success", "Logged out successfully")
             self.notebook.select(0)
-        except:
-            messagebox.showerror("Error", "Connection error")
 
+        except Exception as e:
+            messagebox.showerror("Error", f"Connection error: {str(e)}")
+            
     def reset_state(self):
         if self.client_socket:
             self.client_socket.close()
@@ -374,7 +406,7 @@ class ChatGUI:
         
         self.username_entry.delete(0, 'end')
         self.password_entry.delete(0, 'end')
-        self.delete_password.delete(0, 'end')
+        self.delete_password_var.delete(0, 'end')
         self.message_area.delete('1.0', 'end')
         for item in self.contacts_tree.get_children():
             self.contacts_tree.delete(item)
