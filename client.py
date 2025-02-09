@@ -369,18 +369,16 @@ class ChatClient:
 
     def handle_message(self, message):
         if message.get("success"):
-            if "username" in message:  # Login/Create response
-                if "unread" in message:  # This confirms it's a login response
+            if "username" in message:
+                if "unread" in message:
                     self.username = message["username"]
                     self.status_var.set(f"Logged in as: {self.username}")
-                    self.notebook.select(1)  # Switch to chat tab
+                    self.notebook.select(1)
                     messagebox.showinfo("Messages", f"You have {message['unread']} unread messages")
                     self.refresh_messages()
                 else:
-                    messagebox.showinfo("Account Created", 
-                                        "Account created successfully! Please log in to continue.")
+                    messagebox.showinfo("Account Created", "Account created successfully! Please log in to continue.")
             elif message.get("message_type") == "new_message":
-                # Immediate message delivery
                 frame = MessageFrame(
                     self.messages_frame,
                     message["message"],
@@ -388,7 +386,12 @@ class ChatClient:
                 )
                 frame.pack(fill='x', padx=5, pady=2)
                 
-            elif "messages" in message:  # Message delivery response
+                current_tab = self.notebook.select()
+                if self.notebook.index(current_tab) != 2:  # Not on Chat tab
+                    messagebox.showinfo("New Message", 
+                        f"New message from {message['message']['from']}")
+                    
+            elif "messages" in message:
                 self.clear_messages()
                 for msg in message["messages"]:
                     frame = MessageFrame(
@@ -398,7 +401,7 @@ class ChatClient:
                     )
                     frame.pack(fill='x', padx=5, pady=2)
                     
-            elif "users" in message:  # List accounts response
+            elif "users" in message:
                 self.accounts_list.delete(*self.accounts_list.get_children())
                 self.known_users.clear()
                 
@@ -410,14 +413,13 @@ class ChatClient:
                     self.known_users.add(username)
                 
                 self.user_count_var.set(f"Users found: {len(message['users'])}")
-                # self.update_users_dropdown()
-                
+                    
             elif message.get("message") == "Logged out successfully":
                 self.username = None
                 self.status_var.set("Not logged in")
-                self.notebook.select(0)  # Switch to login tab
+                self.notebook.select(0)
                 self.clear_messages()
-                
+                    
             elif message.get("message") == "Account deleted":
                 self.username = None
                 self.status_var.set("Not logged in")
