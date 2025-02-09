@@ -162,14 +162,31 @@ class ChatServer:
                                 messages,
                                 key=lambda x: x["timestamp"],
                                 reverse=True
-                            )[:count]
-                            
+                            )
                             # Mark messages as read
                             for m in sorted_messages:
                                 if not m["read"]:
                                     m["read"] = True
                                     
                             response = {"success": True, "messages": sorted_messages}
+
+                    elif cmd == "get_undelivered":
+                        if not current_user:
+                            response = {"success": False, "message": "Not logged in"}
+                        else:
+                            count = msg.get("count", 10)
+                            messages = self.messages[current_user]
+                            # Get only undelivered messages
+                            undelivered = sorted(
+                                [m for m in messages if not m["read"] and m.get("delivered_while_offline", True)],
+                                key=lambda x: x["timestamp"],
+                                reverse=True
+                            )
+                            # Mark as read
+                            for m in undelivered:
+                                m["read"] = True
+                                    
+                            response = {"success": True, "messages": undelivered}
 
                     elif cmd == "delete_messages":
                         if not current_user:
