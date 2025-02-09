@@ -1,70 +1,238 @@
 import socket
-from threading import Thread
+import json
+import threading
+import hashlib
+import re
+import fnmatch
+from collections import defaultdict
+import time
 
-class Server:
-    Clients = []
+class ChatServer:
+    def __init__(self, host='localhost', port=56789):
+        self.host = host
+        self.port = port
+        self.users = {}  # username -> (password_hash, settings)
+        self.messages = defaultdict(list)  # username -> [messages]
+        self.active_users = {}  # username -> connection
+        self.message_id_counter = 0
+        self.lock = threading.Lock()
+        self.server = None
+        self.running = False
 
-    # Create a TCP socket over IPv4. Accept at max 5 connections.
-    def __init__(self, HOST, PORT):
-        self.socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        self.socket.bind((HOST, PORT))
-        self.socket.listen(5)
-        print("Server waiting for connection...")
+    def hash_password(self, password):
+        """Hash password using SHA-256."""
+        return hashlib.sha256(password.encode()).hexdigest()
 
-    # Listen for connections on the main thread. When a connection
-    # is received, create a new thread to handle it and add the client
-    # to the list of clients.
-    def listen(self):
-        while True:
-            client_socket, address = self.socket.accept()
-            print(f"Connection from: {address}")
+    def validate_password(self, password):
+        """Ensure password meets minimum requirements."""
+        if len(password) < 8:
+            return False
+        if not re.search(r"\d", password):
+            return False
+        if not re.search(r"[A-Z]", password):
+            return False
+        return True
 
-            # The first message will be the username
-            client_name = client_socket.recv(1024).decode().strip()
-            client = {"client_name": client_name, "client_socket": client_socket}
+    def get_unread_count(self, username):
+        """Get count of unread messages for a user."""
+        return len([msg for msg in self.messages[username] if not msg["read"]])
 
-            # Broadcast that the new client has connected
-            self.broadcast_message(client_name, f"{client_name} has joined the chat!")
+    def handle_client(self, client_socket, address):
+        print(f"New connection from {address}")
+        current_user = None
 
-            Server.Clients.append(client)
-            Thread(target=self.handle_new_client, args=(client,), daemon=True).start()
-
-    def handle_new_client(self, client):
-        client_name = client["client_name"]
-        client_socket = client["client_socket"]
-        
         while True:
             try:
-                # Listen for messages and broadcast them to all clients.
-                client_message = client_socket.recv(1024).decode().strip()
-                
-                # If the client disconnects or says "bye", remove them from the list and close the socket.
-                if not client_message or client_message == f"{client_name}: bye":
-                    self.broadcast_message(client_name, f"{client_name} has left the chat!")
-                    Server.Clients.remove(client)
-                    client_socket.close()
+                data = client_socket.recv(4096).decode()
+                if not data:
                     break
-                
-                # Send the message to all other clients
-                self.broadcast_message(client_name, client_message)
-            except ConnectionResetError:
-                # Handle abrupt disconnection
-                self.broadcast_message(client_name, f"{client_name} has unexpectedly disconnected.")
-                Server.Clients.remove(client)
-                client_socket.close()
+
+                msg = json.loads(data)
+                cmd = msg.get("cmd")
+                response = {"success": False, "message": "Invalid command"}
+
+                with self.lock:
+                    if cmd == "create":
+                        username = msg["username"]
+                        password = msg["password"]
+                        
+                        if not self.validate_password(password):
+                            response = {
+                                "success": False,
+                                "message": "Password must be at least 8 characters with 1 number and 1 uppercase letter"
+                            }
+                        elif username in self.users:
+                            response = {
+                                "success": False,
+                                "message": "Username already exists"
+                            }
+                        else:
+                            self.users[username] = (self.hash_password(password), {})
+                            self.messages[username] = []
+                            response = {
+                                "success": True,
+                                "message": "Account created successfully",
+                                "username": username
+                            }
+
+                    elif cmd == "login":
+                        username = msg["username"]
+                        password = msg["password"]
+                        
+                        if username not in self.users:
+                            response = {
+                                "success": False,
+                                "message": "User not found"
+                            }
+                        elif self.users[username][0] != self.hash_password(password):
+                            response = {
+                                "success": False,
+                                "message": "Invalid password"
+                            }
+                        elif username in self.active_users:
+                            response = {
+                                "success": False,
+                                "message": "User already logged in"
+                            }
+                        else:
+                            current_user = username
+                            self.active_users[username] = client_socket
+                            unread_count = self.get_unread_count(username)
+                            response = {
+                                "success": True,
+                                "message": f"Login successful",
+                                "username": username,
+                                "unread": unread_count
+                            }
+
+                    elif cmd == "list":
+                        pattern = msg.get("pattern", "*")
+                        matches = []
+                        for username in self.users:
+                            if fnmatch.fnmatch(username.lower(), pattern.lower()):
+                                matches.append({
+                                    "username": username,
+                                    "status": "online" if username in self.active_users else "offline"
+                                })
+                        response = {"success": True, "users": matches}
+
+                    elif cmd == "send":
+                        if not current_user:
+                            response = {"success": False, "message": "Not logged in"}
+                        else:
+                            recipient = msg["to"]
+                            content = msg["content"]
+                            
+                            if recipient not in self.users:
+                                response = {"success": False, "message": "Recipient not found"}
+                            else:
+                                message = {
+                                    "id": self.message_id_counter,
+                                    "from": current_user,
+                                    "content": content,
+                                    "timestamp": time.time(),
+                                    "read": False
+                                }
+                                self.message_id_counter += 1
+                                self.messages[recipient].append(message)
+                                
+                                # If recipient is active, send immediately
+                                if recipient in self.active_users:
+                                    try:
+                                        self.active_users[recipient].send(json.dumps({
+                                            "success": True,
+                                            "message_type": "new_message",
+                                            "message": message
+                                        }).encode())
+                                    except:
+                                        pass  # Handle disconnected socket
+                                
+                                response = {"success": True, "message": "Message sent"}
+
+                    elif cmd == "get_messages":
+                        if not current_user:
+                            response = {"success": False, "message": "Not logged in"}
+                        else:
+                            count = msg.get("count", 10)
+                            messages = self.messages[current_user]
+                            unread = sorted(
+                                [m for m in messages if not m["read"]], 
+                                key=lambda x: x["timestamp"]
+                            )[:count]
+                            for m in unread:
+                                m["read"] = True
+                            response = {"success": True, "messages": unread}
+
+                    elif cmd == "delete_messages":
+                        if not current_user:
+                            response = {"success": False, "message": "Not logged in"}
+                        else:
+                            msg_ids = set(msg["message_ids"])
+                            self.messages[current_user] = [
+                                m for m in self.messages[current_user]
+                                if m["id"] not in msg_ids
+                            ]
+                            response = {"success": True, "message": "Messages deleted"}
+
+                    elif cmd == "delete_account":
+                        if not current_user:
+                            response = {"success": False, "message": "Not logged in"}
+                        else:
+                            password = msg["password"]
+                            if self.users[current_user][0] != self.hash_password(password):
+                                response = {"success": False, "message": "Invalid password"}
+                            elif any(not m["read"] for m in self.messages[current_user]):
+                                response = {"success": False, "message": "Cannot delete account with unread messages"}
+                            else:
+                                del self.users[current_user]
+                                del self.messages[current_user]
+                                if current_user in self.active_users:
+                                    del self.active_users[current_user]
+                                current_user = None
+                                response = {"success": True, "message": "Account deleted"}
+
+                    elif cmd == "logout":
+                        if current_user and current_user in self.active_users:
+                            del self.active_users[current_user]
+                        current_user = None
+                        response = {"success": True, "message": "Logged out successfully"}
+
+                client_socket.send(json.dumps(response).encode())
+
+            except Exception as e:
+                print(f"Error handling client: {e}")
                 break
 
-    # Loop through the clients and send the message down each socket.
-    # Skip the socket if it's the same client.
-    def broadcast_message(self, sender_name, message):
-        for client in self.Clients:
-            if client["client_name"] != sender_name:
-                try:
-                    client["client_socket"].send(message.encode())
-                except BrokenPipeError:
-                    # Handle clients that have disconnected but haven't been removed yet
-                    Server.Clients.remove(client)
+        if current_user and current_user in self.active_users:
+            del self.active_users[current_user]
+        client_socket.close()
+
+    def start(self):
+        self.server = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        self.server.bind((self.host, self.port))
+        self.server.listen(5)
+        self.running = True
+        print(f"Server running on {self.host}:{self.port}")
+
+        while self.running:
+            try:
+                client, addr = self.server.accept()
+                threading.Thread(target=self.handle_client, 
+                               args=(client, addr), 
+                               daemon=True).start()
+            except Exception as e:
+                if self.running:
+                    print(f"Error accepting connection: {e}")
+
+    def stop(self):
+        self.running = False
+        if self.server:
+            self.server.close()
 
 if __name__ == "__main__":
-    server = Server("127.0.0.1", 7633)
-    server.listen()
+    server = ChatServer()
+    try:
+        server.start()
+    except KeyboardInterrupt:
+        print("\nShutting down server...")
+        server.stop()
