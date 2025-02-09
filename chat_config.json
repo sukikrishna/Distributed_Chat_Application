@@ -1,5 +1,5 @@
 {
     "host": "127.0.0.1",
-    "port": 50004,
+    "port": 50006,
     "message_fetch_limit": 4
 }

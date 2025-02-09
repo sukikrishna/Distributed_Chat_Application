@@ -75,12 +75,12 @@ class ChatClient:
         self.accounts_frame = ttk.Frame(self.notebook)
         
         self.notebook.add(self.auth_frame, text='Login/Register')
-        self.notebook.add(self.chat_frame, text='Chat')
         self.notebook.add(self.accounts_frame, text='Users')
+        self.notebook.add(self.chat_frame, text='Chat')
         
         self.setup_auth_frame()
-        self.setup_chat_frame()
         self.setup_accounts_frame()
+        self.setup_chat_frame()
         
         self.status_var = tk.StringVar(value="Not logged in")
         status = ttk.Label(self.root, textvariable=self.status_var)
