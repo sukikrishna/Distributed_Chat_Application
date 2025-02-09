@@ -138,7 +138,7 @@ class ChatClient:
         
         ttk.Label(controls, text="Messages to show:").pack()
         self.msg_count = ttk.Entry(controls, width=5)
-        self.msg_count.insert(0, "5")
+        self.msg_count.insert(0, 5) #5 self.config.get("message_fetch_limit")
         self.msg_count.pack()
         
         ttk.Button(controls, text="Check Messages", 
@@ -250,7 +250,7 @@ class ChatClient:
         try:
             count = int(self.msg_count.get())
         except ValueError:
-            count = 5
+            count = 5 #self.config.get("message_fetch_limit")
             
         self.send_command({
             "cmd": "get_messages",
