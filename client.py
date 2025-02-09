@@ -7,13 +7,18 @@ from tkinter import ttk, messagebox
 from config import Config
 
 class MessageFrame(ttk.Frame):
-    def __init__(self, parent, message_data, on_delete=None):
+    def __init__(self, parent, message_data, on_select=None):
         super().__init__(parent)
         
         self.configure(relief='raised', borderwidth=1, padding=5)
+        self.message_id = message_data["id"]
         
         header_frame = ttk.Frame(self)
         header_frame.pack(fill='x', expand=True)
+        
+        self.select_var = tk.BooleanVar()
+        select_cb = ttk.Checkbutton(header_frame, variable=self.select_var)
+        select_cb.pack(side='left', padx=(0, 5))
         
         time_str = time.strftime('%Y-%m-%d %H:%M:%S', 
                                time.localtime(message_data["timestamp"]))
@@ -23,14 +28,6 @@ class MessageFrame(ttk.Frame):
             style='Bold.TLabel'
         )
         sender_label.pack(side='left')
-        
-        if on_delete:
-            delete_btn = ttk.Button(
-                header_frame,
-                text="Delete",
-                command=lambda: on_delete(message_data["id"])
-            )
-            delete_btn.pack(side='right')
     
         content = ttk.Label(
             self,
@@ -140,12 +137,13 @@ class ChatClient:
         
         ttk.Button(controls, text="Check New Messages", 
                   command=self.refresh_messages).pack(fill='x', pady=5)
+        
+        ttk.Button(controls, text="Delete Selected", 
+                  command=self.delete_selected_messages).pack(fill='x', pady=5)
 
-                  
         ttk.Button(right_frame, text="Logout",
             command=self.logout).pack(fill='x', pady=5)
 
-        # Adjusting the delete account section to fit within right_frame
         delete_frame = ttk.LabelFrame(right_frame, text="Delete Account", padding=5)
         delete_frame.pack(fill='x', padx=5, pady=5)
 
@@ -289,6 +287,23 @@ class ChatClient:
                     widget.destroy()
                     break
 
+    def delete_selected_messages(self):
+        selected_ids = []
+        for widget in self.messages_frame.winfo_children():
+            if isinstance(widget, MessageFrame) and widget.select_var.get():
+                selected_ids.append(widget.message_id)
+        
+        if selected_ids:
+            if messagebox.askyesno("Confirm", f"Delete {len(selected_ids)} selected messages?"):
+                self.send_command({
+                    "cmd": "delete_messages",
+                    "message_ids": selected_ids
+                })
+                # Remove the message frames immediately
+                for widget in self.messages_frame.winfo_children():
+                    if isinstance(widget, MessageFrame) and widget.message_id in selected_ids:
+                        widget.destroy()
+
     def refresh_messages(self):
         try:
             count = int(self.msg_count.get())
@@ -380,12 +395,8 @@ class ChatClient:
             elif message.get("message_type") == "new_message":
                 self.clear_messages()
                 new_message = message["message"]
-                frame = MessageFrame(
-                    self.messages_frame,
-                    new_message,
-                    on_delete=self.delete_message
-                )
-                frame.message_id = new_message["id"]  # Store message ID
+                frame = MessageFrame(self.messages_frame, new_message)
+                frame.message_id = new_message["id"]
                 frame.pack(fill='x', padx=5, pady=2)
                 self.refresh_messages()
                 
@@ -397,12 +408,8 @@ class ChatClient:
             elif "messages" in message:
                 self.clear_messages()
                 for msg in message["messages"]:
-                    frame = MessageFrame(
-                        self.messages_frame,
-                        msg,
-                        on_delete=self.delete_message
-                    )
-                    frame.message_id = msg["id"]  # Store message ID
+                    frame = MessageFrame(self.messages_frame, msg)
+                    frame.message_id = msg["id"]
                     frame.pack(fill='x', padx=5, pady=2)
                     
             elif "users" in message:
