@@ -1,6 +1,6 @@
 import socket
 from config import Config
-from custom_protocol import CustomProtocol
+from t_custom_protocol import CustomProtocol
 from json_protocol import JSONProtocol
 
 class ChatClient:

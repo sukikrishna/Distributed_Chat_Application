@@ -5,7 +5,7 @@ from tkinter import ttk, messagebox, scrolledtext
 import threading
 import time
 from datetime import datetime
-from custom_protocol import CustomProtocolClient
+from t_custom_protocol import CustomProtocolClient
 
 class ChatGUI:
     def __init__(self, host="localhost", port=5000):

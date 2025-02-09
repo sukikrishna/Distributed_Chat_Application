@@ -1,3 +1,5 @@
+#custom_protocol
+
 from dataclasses import dataclass
 from enum import Enum
 import socket

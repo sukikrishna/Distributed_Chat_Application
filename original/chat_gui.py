@@ -6,7 +6,7 @@ import json
 import argparse
 import configparser
 from typing import Union, Optional
-from custom_protocol import CustomProtocolClient
+from t_custom_protocol import CustomProtocolClient
 from json_protocol import JsonProtocolClient
 
 class ChatGUI:

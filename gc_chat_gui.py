@@ -4,8 +4,7 @@ import tkinter as tk
 from tkinter import ttk, messagebox, scrolledtext, simpledialog
 import socket
 import threading
-from t_custom_protocol import MessageType
-import json
+from gc_custom_protocol import MessageType
 
 class ChatGUI:
     def __init__(self):
@@ -14,7 +13,7 @@ class ChatGUI:
         self.root.geometry("1000x600")
 
         self.host = "127.0.0.1"
-        self.port = 50011
+        self.port = 50021
         self.username = None
         self.client_socket = None
         self.current_chat = None
@@ -149,7 +148,7 @@ class ChatGUI:
         try:
             self.client_socket.send("LIST_ACCOUNTS".encode())
             response = self.client_socket.recv(1024).decode()
-            self.contacts = json.loads(response)
+            self.contacts = response.split(",")
             
             self.contacts_listbox.delete(0, tk.END)
             for contact in self.contacts:

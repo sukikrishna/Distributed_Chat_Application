@@ -4,8 +4,6 @@ import tkinter as tk
 from tkinter import ttk, messagebox, scrolledtext, simpledialog
 import socket
 import threading
-from t_custom_protocol import MessageType
-import json
 
 class ChatGUI:
     def __init__(self):
@@ -14,7 +12,7 @@ class ChatGUI:
         self.root.geometry("1000x600")
 
         self.host = "127.0.0.1"
-        self.port = 50011
+        self.port = 50051
         self.username = None
         self.client_socket = None
         self.current_chat = None
@@ -128,28 +126,28 @@ class ChatGUI:
             self.client_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
             self.client_socket.connect((self.host, self.port))
             
-            # Send login request
             message = f"LOGIN:{username}:{password}"
             self.client_socket.send(message.encode())
             
-            # Get response
             response = self.client_socket.recv(1024).decode()
-            if response == "SUCCESS":
+            if response.startswith("SUCCESS"):
+                parts = response.split(":")
+                unread_count = int(parts[1]) if len(parts) > 1 else 0
                 self.username = username
                 self.logged_in = True
-                messagebox.showinfo("Success", "Logged in successfully")
+                messagebox.showinfo("Success", f"Logged in successfully\nYou have {unread_count} unread messages")
                 self.update_contacts()
             else:
                 messagebox.showerror("Error", response)
                 
         except Exception as e:
             messagebox.showerror("Error", f"Could not connect to server: {str(e)}")
-
+ 
     def update_contacts(self):
         try:
             self.client_socket.send("LIST_ACCOUNTS".encode())
             response = self.client_socket.recv(1024).decode()
-            self.contacts = json.loads(response)
+            self.contacts = response.split(",")
             
             self.contacts_listbox.delete(0, tk.END)
             for contact in self.contacts:
