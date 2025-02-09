@@ -135,7 +135,7 @@ class ChatClient:
         
         ttk.Label(controls, text="Messages to show:").pack()
         self.msg_count = ttk.Entry(controls, width=5)
-        self.msg_count.insert(0, 5) #5 self.config.get("message_fetch_limit")
+        self.msg_count.insert(0, self.config.get("message_fetch_limit"))
         self.msg_count.pack()
         
         ttk.Button(controls, text="Check Messages", 
@@ -165,28 +165,58 @@ class ChatClient:
         controls_frame = ttk.Frame(self.accounts_frame)
         controls_frame.pack(fill='x', padx=5, pady=5)
         
-        ttk.Label(controls_frame, text="Search pattern:").pack(side='left')
+        search_frame = ttk.LabelFrame(controls_frame, text="Search", padding=5)
+        search_frame.pack(fill='x')
+        
+        ttk.Label(search_frame, text="Pattern:").pack(side='left', padx=5)
         self.search_var = tk.StringVar()
-        ttk.Entry(controls_frame, textvariable=self.search_var).pack(side='left', 
-                                                                    fill='x', expand=True, padx=5)
-        ttk.Button(controls_frame, text="Search", 
-                  command=self.search_accounts).pack(side='right')
+        ttk.Entry(search_frame, textvariable=self.search_var).pack(side='left', 
+                                                                fill='x', expand=True, padx=5)
+        ttk.Button(search_frame, text="Search", 
+                command=self.search_accounts).pack(side='right', padx=5)
+
+        # Create container frame for Treeview and scrollbar
+        tree_frame = ttk.Frame(self.accounts_frame)
+        tree_frame.pack(expand=True, fill='both', padx=5, pady=5)
+
+        # Create Treeview and scrollbars
+        self.accounts_list = ttk.Treeview(tree_frame, 
+                                        columns=('username', 'status'),
+                                        show='headings',
+                                        height=15)
+                                        
+        yscroll = ttk.Scrollbar(tree_frame, orient='vertical', 
+                            command=self.accounts_list.yview)
+        xscroll = ttk.Scrollbar(tree_frame, orient='horizontal', 
+                            command=self.accounts_list.xview)
         
-        self.accounts_list = ttk.Treeview(self.accounts_frame, 
-                                        columns=('status',),
-                                        show='headings')
+        # Configure scrollbars for Treeview
+        self.accounts_list.configure(yscrollcommand=yscroll.set, 
+                                xscrollcommand=xscroll.set)
+
+        # Set column headings and widths
+        self.accounts_list.heading('username', text='Username')
         self.accounts_list.heading('status', text='Status')
-        self.accounts_list.pack(expand=True, fill='both', padx=5, pady=5)
-        
-        delete_frame = ttk.LabelFrame(self.accounts_frame, text="Delete Account", padding=5)
-        delete_frame.pack(fill='x', padx=5, pady=5)
-        
-        ttk.Label(delete_frame, text="Confirm password:").pack()
-        self.delete_password = ttk.Entry(delete_frame, show="*")
-        self.delete_password.pack(fill='x', pady=5)
-        
-        ttk.Button(delete_frame, text="Delete Account", 
-                  command=self.delete_account).pack(fill='x')
+        self.accounts_list.column('username', width=150, minwidth=100)
+        self.accounts_list.column('status', width=100, minwidth=70)
+
+        # Grid layout for Treeview and scrollbars
+        self.accounts_list.grid(row=0, column=0, sticky='nsew')
+        yscroll.grid(row=0, column=1, sticky='ns')
+        xscroll.grid(row=1, column=0, sticky='ew')
+
+        # Configure grid weights
+        tree_frame.grid_rowconfigure(0, weight=1)
+        tree_frame.grid_columnconfigure(0, weight=1)
+
+        # Bind double-click event
+        self.accounts_list.bind('<Double-1>', self.on_user_select)
+
+        # Status frame at bottom
+        status_frame = ttk.Frame(self.accounts_frame)
+        status_frame.pack(fill='x', padx=5, pady=5)
+        self.user_count_var = tk.StringVar(value="Users found: 0")
+        ttk.Label(status_frame, textvariable=self.user_count_var).pack(side='left')
 
     def create_account(self):
         username = self.username_entry.get()
@@ -247,15 +277,25 @@ class ChatClient:
         try:
             count = int(self.msg_count.get())
         except ValueError:
-            count = 5 #self.config.get("message_fetch_limit")
+            count = self.config.get("message_fetch_limit")
             
         self.send_command({
             "cmd": "get_messages",
             "count": count
         })
 
+    def on_user_select(self, event):
+        selection = self.accounts_list.selection()
+        if selection:
+            item = self.accounts_list.item(selection[0])
+            username = item['values'][0]
+            self.recipient_var.set(username)
+            self.notebook.select(1)  # Switch to chat tab
+
     def search_accounts(self):
         pattern = self.search_var.get()
+        if pattern and not pattern.endswith("*"):
+            pattern = pattern + "*"
         self.send_command({
             "cmd": "list",
             "pattern": pattern
@@ -351,11 +391,15 @@ class ChatClient:
             elif "users" in message:  # List accounts response
                 self.accounts_list.delete(*self.accounts_list.get_children())
                 self.known_users.clear()
+                
                 for user in message["users"]:
-                    self.accounts_list.insert("", "end", 
-                                            text=user["username"],
-                                            values=(user["status"],))
-                    self.known_users.add(user["username"])
+                    username = user["username"]
+                    status = user["status"]
+                    
+                    self.accounts_list.insert("", "end", values=(username, status))
+                    self.known_users.add(username)
+                
+                self.user_count_var.set(f"Users found: {len(message['users'])}")
                 self.update_users_dropdown()
                 
             elif message.get("message") == "Logged out successfully":

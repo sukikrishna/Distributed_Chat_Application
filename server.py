@@ -117,6 +117,10 @@ class ChatServer:
 
                     elif cmd == "list":
                         pattern = msg.get("pattern", "*")
+                        if not pattern:
+                            pattern = "*"
+                        elif not pattern.endswith("*"):
+                            pattern = pattern + "*"
                         matches = []
                         for username in self.users:
                             if fnmatch.fnmatch(username.lower(), pattern.lower()):
