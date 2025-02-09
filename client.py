@@ -379,15 +379,20 @@ class ChatClient:
                 else:
                     messagebox.showinfo("Account Created", "Account created successfully! Please log in to continue.")
             elif message.get("message_type") == "new_message":
+                self.clear_messages()
+                new_message = message["message"]
                 frame = MessageFrame(
                     self.messages_frame,
-                    message["message"],
+                    new_message,
                     on_delete=self.delete_message
                 )
                 frame.pack(fill='x', padx=5, pady=2)
                 
+                # Force refresh to get all messages in correct order
+                self.refresh_messages()
+                
                 current_tab = self.notebook.select()
-                if self.notebook.index(current_tab) != 2:  # Not on Chat tab
+                if self.notebook.index(current_tab) != 2:
                     messagebox.showinfo("New Message", 
                         f"New message from {message['message']['from']}")
                     
