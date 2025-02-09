@@ -98,9 +98,6 @@ class ChatClient:
         self.password_entry = ttk.Entry(frame, show="*")
         self.password_entry.pack(pady=5)
         
-        ttk.Label(frame, text="Password must be at least 8 characters\n"
-                          "with 1 number and 1 uppercase letter").pack()
-        
         btn_frame = ttk.Frame(frame)
         btn_frame.pack(pady=10)
         ttk.Button(btn_frame, text="Login", command=self.login).pack(side='left', padx=5)
