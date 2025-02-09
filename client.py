@@ -31,7 +31,7 @@ class MessageFrame(ttk.Frame):
                 command=lambda: on_delete(message_data["id"])
             )
             delete_btn.pack(side='right')
-        
+    
         content = ttk.Label(
             self,
             text=message_data["content"],
@@ -140,6 +140,7 @@ class ChatClient:
         
         ttk.Button(controls, text="Check New Messages", 
                   command=self.refresh_messages).pack(fill='x', pady=5)
+
                   
         ttk.Button(right_frame, text="Logout",
             command=self.logout).pack(fill='x', pady=5)
@@ -282,6 +283,11 @@ class ChatClient:
                 "cmd": "delete_messages",
                 "message_ids": [msg_id]
             })
+            # Remove the message frame immediately
+            for widget in self.messages_frame.winfo_children():
+                if isinstance(widget, MessageFrame) and getattr(widget, 'message_id', None) == msg_id:
+                    widget.destroy()
+                    break
 
     def refresh_messages(self):
         try:
@@ -336,13 +342,6 @@ class ChatClient:
         for widget in self.messages_frame.winfo_children():
             widget.destroy()
 
-    # def update_users_dropdown(self):
-    #     if self.known_users:
-    #         users = sorted(list(self.known_users))
-    #         self.recipient_combo['values'] = users
-    #         if users and not self.recipient_var.get():
-    #             self.recipient_combo.set(users[0])
-
     def send_command(self, command):
         try:
             self.socket.send(json.dumps(command).encode())
@@ -386,9 +385,8 @@ class ChatClient:
                     new_message,
                     on_delete=self.delete_message
                 )
+                frame.message_id = new_message["id"]  # Store message ID
                 frame.pack(fill='x', padx=5, pady=2)
-                
-                # Force refresh to get all messages in correct order
                 self.refresh_messages()
                 
                 current_tab = self.notebook.select()
@@ -404,6 +402,7 @@ class ChatClient:
                         msg,
                         on_delete=self.delete_message
                     )
+                    frame.message_id = msg["id"]  # Store message ID
                     frame.pack(fill='x', padx=5, pady=2)
                     
             elif "users" in message:
@@ -413,7 +412,6 @@ class ChatClient:
                 for user in message["users"]:
                     username = user["username"]
                     status = user["status"]
-                    
                     self.accounts_list.insert("", "end", values=(username, status))
                     self.known_users.add(username)
                 
@@ -447,16 +445,16 @@ class ChatClient:
         def check_messages_periodically():
             if self.username and self.running:
                 self.refresh_messages()
-                self.root.after(5000, check_messages_periodically)
+                self.root.after(1000, check_messages_periodically)
         
         def check_users_periodically():
             if self.username and self.running:
                 self.search_accounts()
-                self.root.after(10000, check_users_periodically)
+                self.root.after(1000, check_users_periodically)
 
         # Start periodic checks
-        self.root.after(5000, check_messages_periodically)
-        self.root.after(10000, check_users_periodically)
+        self.root.after(1000, check_messages_periodically)
+        self.root.after(1000, check_users_periodically)
         
         # Set up proper cleanup on window close
         self.root.protocol("WM_DELETE_WINDOW", self.on_closing)
