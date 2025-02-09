@@ -2,8 +2,8 @@ import tkinter as tk
 from tkinter import ttk, messagebox, scrolledtext
 import socket
 import threading
-import time
-from custom_protocol import MessageType
+from custom_protocol import CustomProtocolServer
+from config import Config
 
 class ChatGUI:
     def __init__(self):
@@ -11,8 +11,9 @@ class ChatGUI:
         self.root.title("Chat Application")
         self.root.geometry("1000x600")
 
-        self.host = "127.0.0.1"
-        self.port = 50022
+        self.config = Config()
+        self.host = self.config.get("host")
+        self.port = self.config.get("port")
         self.username = None
         self.client_socket = None
         self.current_chat = None
@@ -20,7 +21,36 @@ class ChatGUI:
         self.logged_in = False
         self.is_group_chat = False
 
+        # Check for existing connection
+        # try:
+        #     test_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        #     test_socket.connect((self.host, self.port))
+        #     test_socket.close()
+        # except:
+        #     # Start server if not running
+        #     self.start_server()
+
         self.setup_gui()
+
+    def connect_socket(self):
+        try:
+            if self.client_socket:
+                try:
+                    self.client_socket.close()
+                except:
+                    pass
+            
+            # Reload config to get potentially updated port
+            self.config.load_config()
+            self.port = self.config.get("port")
+            
+            self.client_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+            self.client_socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+            self.client_socket.connect((self.host, self.port))
+            return True
+        except Exception as e:
+            messagebox.showerror("Error", f"Connection failed: {str(e)}")
+            return False
 
     def setup_gui(self):
         self.notebook = ttk.Notebook(self.root)
@@ -93,13 +123,29 @@ class ChatGUI:
         ttk.Button(input_frame, text="Send", command=self.send_message).pack(side='right')
 
     def setup_settings_frame(self):
-        ttk.Button(self.settings_frame, text="Logout", command=self.logout).pack(pady=5)
+        """Set up the settings frame"""
+        # Messages per fetch
+        ttk.Label(self.settings_frame, text="Messages per fetch:").grid(row=0, column=0, pady=5)
+        self.msgs_per_fetch_var = tk.StringVar(value="10")
+        ttk.Entry(self.settings_frame, textvariable=self.msgs_per_fetch_var).grid(row=0, column=1, pady=5)
         
-        ttk.Label(self.settings_frame, text="Delete Account").pack(pady=5)
-        self.delete_password = ttk.Entry(self.settings_frame, show="*")
-        self.delete_password.pack(pady=5)
-        ttk.Button(self.settings_frame, text="Delete Account", 
-                  command=self.delete_account).pack(pady=5)
+        # Save settings button
+        ttk.Button(self.settings_frame, text="Save Settings", command=self.save_settings).grid(row=4, column=0, columnspan=2, pady=10)
+        
+        # Delete account section
+        ttk.Label(self.settings_frame, text="Delete Account", font=('', 12, 'bold')).grid(row=5, column=0, columnspan=2, pady=20)
+        ttk.Label(self.settings_frame, text="Password:").grid(row=6, column=0, pady=5)
+        self.delete_password_var = tk.StringVar()
+        ttk.Entry(self.settings_frame, textvariable=self.delete_password_var, show="*").grid(row=6, column=1, pady=5)
+        
+        # Delete account button
+        ttk.Button(self.settings_frame, text="Delete Account",
+                  command=self.delete_account,
+                  style="Danger.TButton").grid(row=7, column=0, columnspan=2, pady=10)
+        
+        # Logout button
+        ttk.Button(self.settings_frame, text="Logout",
+                  command=self.logout).grid(row=8, column=0, columnspan=2, pady=20)
 
     def create_account(self):
         username = self.username_entry.get()
@@ -262,17 +308,29 @@ class ChatGUI:
                 self.message_area.insert(tk.END, "Disconnected from server\n")
                 break
 
+    def save_settings(self):
+        """Save user settings"""
+        try:
+            new_settings = {
+                'messages_per_fetch': int(self.msgs_per_fetch_var.get()),
+            }
+            response = self.client.update_settings(new_settings)
+            if "updated successfully" in response:
+                messagebox.showinfo("Success", "Settings saved successfully")
+            else:
+                messagebox.showerror("Error", response)
+        except ValueError:
+            messagebox.showerror("Error", "Invalid messages per fetch value")
+            
+
     def delete_account(self):
-        if not self.logged_in:
-            messagebox.showerror("Error", "Please login first")
+        """Delete user account"""
+        if not messagebox.askyesno("Confirm", "Are you sure you want to delete your account? This cannot be undone."):
             return
-            
-        password = self.delete_password.get()
+
+        password = self.delete_password_var.get()
         if not password:
-            messagebox.showwarning("Warning", "Enter password")
-            return
-            
-        if not messagebox.askyesno("Confirm", "Delete account? This cannot be undone."):
+            messagebox.showwarning("Warning", "Enter your password")
             return
             
         try:
@@ -281,13 +339,13 @@ class ChatGUI:
             response = self.client_socket.recv(1024).decode()
             
             if response == "SUCCESS":
-                messagebox.showinfo("Success", "Account deleted")
+                messagebox.showinfo("Success", "Account deleted successfully")
                 self.reset_state()
-                self.notebook.select(0)
+                self.notebook.select(0)  # Return to login tab
             else:
                 messagebox.showerror("Error", response)
-        except:
-            messagebox.showerror("Error", "Connection error")
+        except Exception as e:
+            messagebox.showerror("Error", f"Connection error: {str(e)}")
 
     def logout(self):
         if not self.logged_in:

@@ -1,28 +1,12 @@
 from dataclasses import dataclass
-from enum import Enum
 import socket
 import selectors
-import struct
 import threading
-import queue
 import hashlib
 import time
 import json
-from typing import Optional, List, Dict, Tuple
-
-class MessageType(Enum):
-    CREATE_ACCOUNT = 1
-    LOGIN = 2
-    LIST_ACCOUNTS = 3
-    SEND_MESSAGE = 4
-    READ_MESSAGES = 5
-    DELETE_MESSAGES = 6
-    DELETE_ACCOUNT = 7
-    LOGOUT = 8
-    GROUP_CHAT = 9
-    LEAVE_GROUP = 10
-    ERROR = 11
-    SUCCESS = 12
+from typing import List, Dict, Tuple
+from config import Config
 
 @dataclass
 class ChatMessage:
@@ -34,16 +18,17 @@ class ChatMessage:
     read: bool = False
 
 class CustomProtocolServer:
-    def __init__(self, host: str, port: int):
-        self.host = host
-        self.port = port
+    def __init__(self, host=None, port=None):
+        config = Config()
+        self.host = host or config.get("host")
+        self.port = port or config.get("port")
         self.selector = selectors.DefaultSelector()
         self.accounts: Dict[str, Tuple[str, bool, dict]] = {}  # username: (password_hash, is_logged_in, settings)
         self.messages: Dict[str, List[ChatMessage]] = {}  # username: [messages]
         self.active_connections: Dict[str, socket.socket] = {}
         self.group_clients: Dict[str, socket.socket] = {}
         self.message_id_counter = 0
-        self.msgs_per_fetch = 10  # Default messages per fetch
+        self.msgs_per_fetch = config.get("message_fetch_limit")
 
     def _hash_password(self, password: str) -> str:
         return hashlib.sha256(password.encode()).hexdigest()
@@ -69,20 +54,29 @@ class CustomProtocolServer:
             return True
         return False
 
-    def delete_account(self, username: str, password: str) -> bool:
-        if username not in self.accounts:
-            return False
-        stored_password, _, _ = self.accounts[username]
-        if stored_password == self._hash_password(password):
-            # Remove all messages sent to/from this user
+    def handle_delete_account(self, message: str, client_socket: socket.socket):
+        try:
+            _, username, password = message.split(":")
+            
+            if username not in self.accounts:
+                client_socket.send("User not found".encode())
+                return
+                
+            stored_password, _, _ = self.accounts[username]
+            if stored_password != self._hash_password(password):
+                client_socket.send("Invalid password".encode())
+                return
+                
             del self.accounts[username]
             del self.messages[username]
             if username in self.active_connections:
-                self.active_connections[username].close()
                 del self.active_connections[username]
-            return True
-        return False
-
+                
+            client_socket.send("SUCCESS".encode())
+            
+        except Exception as e:
+            client_socket.send(f"Error: {str(e)}".encode())
+    
     def handle_client(self, client_socket):
         try:
             init_message = client_socket.recv(1024).decode()
@@ -122,14 +116,7 @@ class CustomProtocolServer:
                                args=(username, client_socket),
                                daemon=True).start()
             else:
-                client_socket.send("Invalid credentials".encode())
-
-    def handle_delete_account(self, message: str, client_socket: socket.socket):
-        _, username, password = message.split(":")
-        if self.delete_account(username, password):
-            client_socket.send("SUCCESS".encode())
-        else:
-            client_socket.send("Invalid credentials".encode())
+                client_socket.send("Invalid username or password".encode())
 
     def handle_private_chat_client(self, username: str, client_socket: socket.socket):
         self.active_connections[username] = client_socket
@@ -264,6 +251,39 @@ class CustomProtocolServer:
             if msg.id not in message_ids
         ]
 
+    def delete_account(self, username: str, password: str) -> str:
+        if username not in self.accounts:
+            return "User not found"
+        stored_password, _, _ = self.accounts[username]
+        if stored_password == self._hash_password(password):
+            # Remove all messages where user is recipient
+            for user in list(self.messages.keys()):
+                self.messages[user] = [msg for msg in self.messages[user] 
+                                    if msg.recipient != username]
+            
+            # Close and remove active connections
+            if username in self.active_connections:
+                try:
+                    self.active_connections[username].close()
+                except:
+                    pass
+                del self.active_connections[username]
+                
+            # Remove from group chat if present
+            if username in self.group_clients:
+                try:
+                    self.group_clients[username].close()
+                except:
+                    pass
+                del self.group_clients[username]
+                
+            # Delete account data
+            del self.accounts[username]
+            del self.messages[username]
+            
+            return "Account deleted successfully"
+        return "Invalid password"
+
     def logout(self, username: str) -> bool:
         if username in self.accounts:
             stored_password, _, settings = self.accounts[username]
@@ -273,24 +293,60 @@ class CustomProtocolServer:
             return True
         return False
 
+    def find_free_port(self, start_port):
+        port = start_port
+        max_port = 65535
+        
+        while port <= max_port:
+            try:
+                test_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+                test_socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+                test_socket.bind((self.host, port))
+                test_socket.close()
+                return port
+            except OSError:
+                port += 1
+            finally:
+                test_socket.close()
+        raise RuntimeError("No free ports available")
+
     def start(self):
+        # Find next available port
+        try:
+            self.port = self.find_free_port(self.port)
+            # Update config with new port
+            config = Config()
+            config.update("port", self.port)
+        except RuntimeError as e:
+            print(f"Server error: {e}")
+            return
+
         server_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         server_socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
-        server_socket.bind((self.host, self.port))
-        server_socket.listen(5)
-        print(f"Server started on {self.host}:{self.port}")
+        server_socket.settimeout(1)
+        
+        try:
+            server_socket.bind((self.host, self.port))
+            server_socket.listen(5)
+            print(f"Server started on {self.host}:{self.port}")
 
-        while True:
-            try:
-                client_socket, address = server_socket.accept()
-                print(f"New connection from {address}")
-                threading.Thread(target=self.handle_client, 
-                               args=(client_socket,),
-                               daemon=True).start()
-            except Exception as e:
-                print(f"Error accepting connection: {e}")
-                continue
+            while True:
+                try:
+                    client_socket, address = server_socket.accept()
+                    client_socket.settimeout(None)
+                    print(f"New connection from {address}")
+                    threading.Thread(target=self.handle_client, 
+                                args=(client_socket,),
+                                daemon=True).start()
+                except socket.timeout:
+                    continue
+                except Exception as e:
+                    print(f"Error accepting connection: {e}")
+                    continue
+        finally:
+            server_socket.close()
 
 if __name__ == "__main__":
-    server = CustomProtocolServer("127.0.0.1", 50022)
+    config = Config()
+    server = CustomProtocolServer(config.get("host"), config.get("port"))
     server.start()
