@@ -323,14 +323,15 @@ class ChatClient:
     def handle_message(self, message):
         if message.get("success"):
             if "username" in message:  # Login/Create response
-                self.username = message["username"]
-                self.status_var.set(f"Logged in as: {self.username}")
-                self.notebook.select(1)  # Switch to chat tab
-                if "unread" in message:
-                    messagebox.showinfo("Messages", 
-                                     f"You have {message['unread']} unread messages")
+                if "unread" in message:  # This confirms it's a login response
+                    self.username = message["username"]
+                    self.status_var.set(f"Logged in as: {self.username}")
+                    self.notebook.select(1)  # Switch to chat tab
+                    messagebox.showinfo("Messages", f"You have {message['unread']} unread messages")
                     self.refresh_messages()
-                    
+                else:
+                    messagebox.showinfo("Account Created", 
+                                        "Account created successfully! Please log in to continue.")
             elif message.get("message_type") == "new_message":
                 # Immediate message delivery
                 frame = MessageFrame(
