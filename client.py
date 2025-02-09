@@ -140,23 +140,6 @@ class ChatClient:
         
         ttk.Button(controls, text="Check New Messages", 
                   command=self.refresh_messages).pack(fill='x', pady=5)
-        
-        # send_frame = ttk.LabelFrame(right_frame, text="Send Message", padding=5)
-        # send_frame.pack(fill='x', pady=5)
-        
-        # ttk.Label(send_frame, text="To:").pack()
-        # self.recipient_var = tk.StringVar()
-        # self.recipient_combo = ttk.Combobox(send_frame, 
-        #                                   textvariable=self.recipient_var,
-        #                                   state='readonly')
-        # self.recipient_combo.pack(fill='x')
-        
-        # ttk.Label(send_frame, text="Message:").pack()
-        # self.message_text = tk.Text(send_frame, height=4, width=30)
-        # self.message_text.pack()
-        
-        # ttk.Button(send_frame, text="Send", 
-        #           command=self.send_message).pack(fill='x', pady=5)
                   
         ttk.Button(right_frame, text="Logout",
             command=self.logout).pack(fill='x', pady=5)
@@ -181,8 +164,9 @@ class ChatClient:
         
         ttk.Label(search_frame, text="Username:").pack(side='left', padx=5)
         self.search_var = tk.StringVar()
-        ttk.Entry(search_frame, textvariable=self.search_var).pack(side='left', 
-                                                                fill='x', expand=True, padx=5)
+        search_entry = ttk.Entry(search_frame, textvariable=self.search_var)
+        search_entry.pack(side='left', fill='x', expand=True, padx=5)
+        
         ttk.Button(search_frame, text="Search", 
                 command=self.search_accounts).pack(side='right', padx=5)
 
@@ -211,36 +195,6 @@ class ChatClient:
         self.accounts_list.column('username', width=150, minwidth=100)
         self.accounts_list.column('status', width=100, minwidth=70)
 
-        self.accounts_list.pack(expand=True, fill='both', padx=5, pady=5)
-
-        # delete_frame = ttk.LabelFrame(self.accounts_frame, text="Delete Account", padding=5)
-        # delete_frame.pack(fill='x', padx=5, pady=5)
-
-        # ttk.Label(delete_frame, text="Confirm password:").pack()
-        # self.delete_password = ttk.Entry(delete_frame, show="*")
-        # self.delete_password.pack(fill='x', pady=5)
-
-        # ttk.Button(delete_frame, text="Delete Account",
-        #           command=self.delete_account).pack(fill='x')
-
-        send_frame = ttk.LabelFrame(self.accounts_frame, text="Send Message", padding=5)
-        send_frame.pack(fill='x', padx=5, pady=5)
-        
-        ttk.Label(send_frame, text="To:").pack()
-        self.recipient_var = tk.StringVar()
-        self.recipient_combo = ttk.Combobox(send_frame, 
-                                          textvariable=self.recipient_var,
-                                          state='readonly')
-        self.recipient_combo.pack(fill='x', pady=5)
-        
-        ttk.Label(send_frame, text="Message:").pack()
-        self.message_text = tk.Text(send_frame, height=4, width=250)
-        self.message_text.pack()
-        
-        ttk.Button(send_frame, text="Send", 
-                  command=self.send_message).pack(fill='x', pady=5)
-                  
-
         # Grid layout for Treeview and scrollbars
         self.accounts_list.grid(row=0, column=0, sticky='nsew')
         yscroll.grid(row=0, column=1, sticky='ns')
@@ -252,6 +206,21 @@ class ChatClient:
 
         # Bind double-click event
         self.accounts_list.bind('<Double-1>', self.on_user_select)
+        
+        send_frame = ttk.LabelFrame(self.accounts_frame, text="Send Message", padding=5)
+        send_frame.pack(fill='x', padx=5, pady=5)
+        
+        ttk.Label(send_frame, text="To:").pack()
+        self.recipient_var = tk.StringVar()
+        self.recipient_entry = ttk.Entry(send_frame, textvariable=self.recipient_var, state='readonly')
+        self.recipient_entry.pack(fill='x', pady=5)
+        
+        ttk.Label(send_frame, text="Message:").pack()
+        self.message_text = tk.Text(send_frame, height=4, width=250)
+        self.message_text.pack()
+        
+        ttk.Button(send_frame, text="Send", 
+                command=self.send_message).pack(fill='x', pady=5)
 
         # Status frame at bottom
         status_frame = ttk.Frame(self.accounts_frame)
@@ -367,12 +336,12 @@ class ChatClient:
         for widget in self.messages_frame.winfo_children():
             widget.destroy()
 
-    def update_users_dropdown(self):
-        if self.known_users:
-            users = sorted(list(self.known_users))
-            self.recipient_combo['values'] = users
-            if users and not self.recipient_var.get():
-                self.recipient_combo.set(users[0])
+    # def update_users_dropdown(self):
+    #     if self.known_users:
+    #         users = sorted(list(self.known_users))
+    #         self.recipient_combo['values'] = users
+    #         if users and not self.recipient_var.get():
+    #             self.recipient_combo.set(users[0])
 
     def send_command(self, command):
         try:
@@ -441,7 +410,7 @@ class ChatClient:
                     self.known_users.add(username)
                 
                 self.user_count_var.set(f"Users found: {len(message['users'])}")
-                self.update_users_dropdown()
+                # self.update_users_dropdown()
                 
             elif message.get("message") == "Logged out successfully":
                 self.username = None
