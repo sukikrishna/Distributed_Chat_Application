@@ -277,9 +277,6 @@ class ChatServer:
                             if self.users[current_user][0] != self.hash_password(password):
                                 response = {"success": False, "message": "Invalid password"}
                                 logging.warning(f"Failed account deletion for {current_user} - Incorrect password")
-                            elif any(not m["read"] for m in self.messages[current_user]):
-                                response = {"success": False, "message": "Cannot delete account with unread messages"}
-                                logging.warning(f"Failed account deletion for {current_user} - Unread messages exist")
                             else:
                                 del self.users[current_user]
                                 del self.messages[current_user]
