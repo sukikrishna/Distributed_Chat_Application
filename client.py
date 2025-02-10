@@ -441,22 +441,17 @@ class ChatClient:
                 for user in message["users"]:
                     username = user["username"]
                     status = user["status"]
-                    
-                    # Add "(You)" for the current user
-                    if username == self.username:
-                        username += " (You)"
-                    
                     self.accounts_list.insert("", "end", values=(username, status))
                     self.known_users.add(username)
                 
                 self.user_count_var.set(f"Users found: {len(message['users'])}")
-
+                    
             elif message.get("message") == "Logged out successfully":
                 self.username = None
                 self.status_var.set("Not logged in")
                 self.notebook.select(0)
                 self.clear_messages()
-            
+                    
             elif message.get("message") == "Account deleted":
                 self.username = None
                 self.status_var.set("Not logged in")
