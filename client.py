@@ -367,6 +367,8 @@ class ChatClient:
             widget.destroy()
 
     def send_command(self, command):
+        """Ensure every command includes the version field before sending."""
+        command["version"] = "1.0"  # Add version to every message
         try:
             self.socket.send(json.dumps(command).encode())
         except Exception as e:

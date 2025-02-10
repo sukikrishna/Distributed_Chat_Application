@@ -6,7 +6,15 @@ import re
 import fnmatch
 from collections import defaultdict
 import time
+import logging
 from config import Config
+
+# Configure logging to print to the console or save to a file
+logging.basicConfig(
+    filename="server.log",  # Change to None to print to console instead
+    level=logging.INFO,
+    format="%(asctime)s - %(levelname)s - %(message)s"
+)
 
 class ChatServer:
     def __init__(self, host=None, port=None):
@@ -41,7 +49,7 @@ class ChatServer:
                    if not msg["read"] and msg.get("delivered_while_offline", True)])
 
     def handle_client(self, client_socket, address):
-        print(f"New connection from {address}")
+        logging.info(f"New connection from {address}")
         current_user = None
 
         while True:
@@ -50,87 +58,92 @@ class ChatServer:
                 if not data:
                     break
 
-                msg = json.loads(data)
+                try:
+                    msg = json.loads(data)  # Ensure valid JSON
+                except json.JSONDecodeError:
+                    logging.warning(f"Invalid JSON received from {address}")
+                    response = {"success": False, "error": "Invalid JSON format"}
+                    client_socket.send(json.dumps(response).encode())
+                    continue  
+
+                # Version Check
+                if "version" not in msg or msg["version"] != "1.0":
+                    logging.warning(f"Client {address} sent unsupported version: {msg.get('version')}")
+                    response = {"success": False, "error": "Unsupported protocol version"}
+                    client_socket.send(json.dumps(response).encode())
+                    continue  
+
+                # Get the operation code
                 cmd = msg.get("cmd")
                 response = {"success": False, "message": "Invalid command"}
-
+                
                 with self.lock:
                     if cmd == "create":
-                        username = msg["username"]
-                        password = msg["password"]
-                        
-                        if not self.validate_password(password):
+                        username = msg.get("username")
+                        password = msg.get("password")
+
+                        if not username or not password:
+                            logging.warning(f"Failed account creation from {address}: Missing fields")
+                            response = {"success": False, "message": "Username and password required"}
+                        elif not self.validate_password(password):
+                            logging.warning(f"Failed account creation from {address}: Weak password")
                             response = {
                                 "success": False,
                                 "message": "Password must be at least 8 characters with 1 number and 1 uppercase letter"
                             }
-                            print(f"Failed account creation attempt from {address} (Username: {username}) - Password requirements not met")
                         elif username in self.users:
-                            response = {
-                                "success": False,
-                                "message": "Username already exists"
-                            }
-                            print(f"Failed account creation attempt from {address} (Username: {username}) - Username already exists")
+                            logging.warning(f"Failed account creation from {address}: Username '{username}' already exists")
+                            response = {"success": False, "message": "Username already exists"}
                         else:
                             self.users[username] = (self.hash_password(password), {})
                             self.messages[username] = []
-                            response = {
-                                "success": True,
-                                "message": "Account created successfully",
-                                "username": username
-                            }
-                            print(f"New account created from {address} (User: {username})")
-
+                            logging.info(f"New account created: {username} from {address}")
+                            response = {"success": True, "message": "Account created successfully", "username": username}
+            
                     elif cmd == "login":
-                        username = msg["username"]
-                        password = msg["password"]
-                        
+                        username = msg.get("username")
+                        password = msg.get("password")
+
                         if username not in self.users:
-                            response = {
-                                "success": False,
-                                "message": "User not found"
-                            }
-                            print(f"Failed login attempt from {address} (Username: {username}) - User not found")
+                            logging.warning(f"Failed login attempt from {address}: User '{username}' not found")
+                            response = {"success": False, "message": "User not found"}
                         elif self.users[username][0] != self.hash_password(password):
-                            response = {
-                                "success": False,
-                                "message": "Invalid password"
-                            }
-                            print(f"Failed login attempt from {address} (Username: {username}) - Incorrect password")
+                            logging.warning(f"Failed login attempt from {address}: Incorrect password for '{username}'")
+                            response = {"success": False, "message": "Invalid password"}
                         elif username in self.active_users:
-                            response = {
-                                "success": False,
-                                "message": "User already logged in"
-                            }
-                            print(f"Failed login attempt from {address} (Username: {username}) - Already logged in")
+                            logging.warning(f"Failed login attempt from {address}: '{username}' already logged in")
+                            response = {"success": False, "message": "User already logged in"}
                         else:
                             current_user = username
                             self.active_users[username] = client_socket
                             unread_count = self.get_unread_count(username)
+                            logging.info(f"User '{username}' logged in from {address}")
+
+                            # Construct response for successful login
                             response = {
                                 "success": True,
                                 "message": "Login successful",
                                 "username": username,
                                 "unread": unread_count
                             }
-                            print(f"User logged in from {address} (Username: {username})")
 
+                            # Build the list of all users with online/offline status
                             users_list = []
                             for user in self.users:
                                 users_list.append({
                                     "username": user,
                                     "status": "online" if user in self.active_users else "offline"
                                 })
-                            
-                            # Send to the logged-in client
+
+                            # Send login success response + user list to the logged-in client
                             user_response = {
                                 "success": True,
                                 "users": users_list
                             }
                             client_socket.send(json.dumps(response).encode())
                             client_socket.send(json.dumps(user_response).encode())
-                            
-                            # Broadcast to other active clients
+
+                            # Broadcast updated user list to all active clients
                             for active_client in self.active_users.values():
                                 if active_client != client_socket:
                                     try:
@@ -138,15 +151,19 @@ class ChatServer:
                                             "success": True,
                                             "users": users_list
                                         }).encode())
-                                    except:
+                                    except Exception:
                                         pass
 
                     elif cmd == "list":
                         pattern = msg.get("pattern", "*")
+
+                        # Ensure a valid pattern (default to "*")
                         if not pattern:
                             pattern = "*"
                         elif not pattern.endswith("*"):
                             pattern = pattern + "*"
+
+                        # Find matching users
                         matches = []
                         for username in self.users:
                             if fnmatch.fnmatch(username.lower(), pattern.lower()):
@@ -154,18 +171,20 @@ class ChatServer:
                                     "username": username,
                                     "status": "online" if username in self.active_users else "offline"
                                 })
+
                         response = {"success": True, "users": matches}
+                        logging.info(f"User list requested from {address}, found {len(matches)} users")
 
                     elif cmd == "send":
                         if not current_user:
                             response = {"success": False, "message": "Not logged in"}
                         else:
-                            recipient = msg["to"]
-                            content = msg["content"]
-                            
+                            recipient = msg.get("to")
+                            content = msg.get("content")
+
                             if recipient not in self.users:
+                                logging.warning(f"Message failed: '{recipient}' does not exist (from {current_user})")
                                 response = {"success": False, "message": "Recipient not found"}
-                                print(f"Failed message send from {current_user} to {recipient} - Recipient not found")
                             else:
                                 message = {
                                     "id": self.message_id_counter,
@@ -187,96 +206,110 @@ class ChatServer:
                                             "message": message
                                         }).encode())
                                     except:
-                                        pass  # Handle disconnected socket
-                                
+                                        pass  
+
+                                logging.info(f"Message sent from '{current_user}' to '{recipient}'")
                                 response = {"success": True, "message": "Message sent"}
-                                print(f"Message sent from {current_user} to {recipient}")
 
                     elif cmd == "get_messages":
                         if not current_user:
                             response = {"success": False, "message": "Not logged in"}
+                            logging.warning(f"Unauthorized get_messages request from {address}")
                         else:
-                            count = msg.get("count", 10)
+                            count = msg.get("count", 10)  # Default to retrieving last 10 messages
                             messages = self.messages[current_user]
-                            # Get all messages, sorted by timestamp
-                            sorted_messages = sorted(
-                                messages,
-                                key=lambda x: x["timestamp"],
-                                reverse=True
-                            )
+
+                            # Get all messages, sorted by timestamp (newest first)
+                            sorted_messages = sorted(messages, key=lambda x: x["timestamp"], reverse=True)
+
                             # Mark messages as read
                             for m in sorted_messages:
                                 if not m["read"]:
                                     m["read"] = True
-                                    
+
                             response = {"success": True, "messages": sorted_messages}
+                            logging.info(f"User '{current_user}' retrieved {len(sorted_messages)} messages")
 
                     elif cmd == "get_undelivered":
                         if not current_user:
                             response = {"success": False, "message": "Not logged in"}
+                            logging.warning(f"Unauthorized get_undelivered request from {address}")
                         else:
-                            count = msg.get("count", 10)
+                            count = msg.get("count", 10)  # Default to retrieving last 10 undelivered messages
                             messages = self.messages[current_user]
+
                             # Get only undelivered messages
                             undelivered = sorted(
                                 [m for m in messages if not m["read"] and m.get("delivered_while_offline", True)],
                                 key=lambda x: x["timestamp"],
                                 reverse=True
                             )[:count]  # Limit to requested count
+
                             # Mark as read
                             for m in undelivered:
                                 m["read"] = True
-                                    
+
                             response = {"success": True, "messages": undelivered}
-                            print(f"User {current_user} retrieved {len(undelivered)} messages")
+                            logging.info(f"User '{current_user}' retrieved {len(undelivered)} undelivered messages")
+
                     elif cmd == "delete_messages":
                         if not current_user:
                             response = {"success": False, "message": "Not logged in"}
+                            logging.warning(f"Unauthorized delete_messages request from {address}")
                         else:
-                            msg_ids = set(msg["message_ids"])
+                            msg_ids = set(msg.get("message_ids", []))  # Get message IDs to delete
+
+                            # Keep only messages that are not in the list of IDs to delete
                             self.messages[current_user] = [
-                                m for m in self.messages[current_user]
-                                if m["id"] not in msg_ids
+                                m for m in self.messages[current_user] if m["id"] not in msg_ids
                             ]
+
                             response = {"success": True, "message": "Messages deleted"}
-                            print(f"User {current_user} deleted messages {msg_ids}")
+                            logging.info(f"User '{current_user}' deleted {len(msg_ids)} messages")
 
                     elif cmd == "delete_account":
                         if not current_user:
                             response = {"success": False, "message": "Not logged in"}
+                            logging.warning(f"Unauthorized delete_account request from {address}")
                         else:
-                            password = msg["password"]
+                            password = msg.get("password")
+
                             if self.users[current_user][0] != self.hash_password(password):
                                 response = {"success": False, "message": "Invalid password"}
-                                print(f"Failed account deletion for {current_user} - Incorrect password")
+                                logging.warning(f"Failed account deletion for {current_user} - Incorrect password")
                             elif any(not m["read"] for m in self.messages[current_user]):
                                 response = {"success": False, "message": "Cannot delete account with unread messages"}
-                                print(f"Failed account deletion for {current_user} - Unread messages exist")
+                                logging.warning(f"Failed account deletion for {current_user} - Unread messages exist")
                             else:
                                 del self.users[current_user]
                                 del self.messages[current_user]
+
                                 if current_user in self.active_users:
                                     del self.active_users[current_user]
-                                print(f"Account deleted: {current_user}")
+
+                                logging.info(f"Account deleted: {current_user}")
                                 current_user = None
                                 response = {"success": True, "message": "Account deleted"}
 
                     elif cmd == "logout":
                         if not current_user:
                             response = {"success": False, "message": "Not logged in"}
+                            logging.warning(f"Unauthorized logout request from {address}")
                         else:
                             if current_user in self.active_users:
                                 del self.active_users[current_user]
-                            print(f"User logged out: {current_user}")
-                            
-                            # Broadcast updated user list to all active clients
+
+                            logging.info(f"User '{current_user}' logged out")
+
+                            # Build updated user list to notify other clients
                             users_list = []
                             for user in self.users:
                                 users_list.append({
                                     "username": user,
                                     "status": "online" if user in self.active_users else "offline"
                                 })
-                            
+
+                            # Notify all active clients about the updated user list
                             for client in self.active_users.values():
                                 try:
                                     client.send(json.dumps({
@@ -284,11 +317,11 @@ class ChatServer:
                                         "users": users_list
                                     }).encode())
                                 except:
-                                    pass
-                            
+                                    pass  # Ignore if a client fails to receive the message
+
                             current_user = None
                             response = {"success": True, "message": "Logged out successfully"}
-                
+            
                 client_socket.send(json.dumps(response).encode())
 
             except Exception as e:
