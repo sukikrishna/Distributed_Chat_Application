@@ -115,6 +115,32 @@ class ChatServer:
                             }
                             print(f"User logged in from {address} (Username: {username})")
 
+                            users_list = []
+                            for user in self.users:
+                                users_list.append({
+                                    "username": user,
+                                    "status": "online" if user in self.active_users else "offline"
+                                })
+                            
+                            # Send to the logged-in client
+                            user_response = {
+                                "success": True,
+                                "users": users_list
+                            }
+                            client_socket.send(json.dumps(response).encode())
+                            client_socket.send(json.dumps(user_response).encode())
+                            
+                            # Broadcast to other active clients
+                            for active_client in self.active_users.values():
+                                if active_client != client_socket:
+                                    try:
+                                        active_client.send(json.dumps({
+                                            "success": True,
+                                            "users": users_list
+                                        }).encode())
+                                    except:
+                                        pass
+
                     elif cmd == "list":
                         pattern = msg.get("pattern", "*")
                         if not pattern:
@@ -236,20 +262,60 @@ class ChatServer:
                                 response = {"success": True, "message": "Account deleted"}
 
                     elif cmd == "logout":
-                        if current_user in self.active_users:
-                            del self.active_users[current_user]
-                        print(f"User logged out: {current_user}")
-                        current_user = None
-                        response = {"success": True, "message": "Logged out successfully"}
-
+                        if not current_user:
+                            response = {"success": False, "message": "Not logged in"}
+                        else:
+                            if current_user in self.active_users:
+                                del self.active_users[current_user]
+                            print(f"User logged out: {current_user}")
+                            
+                            # Broadcast updated user list to all active clients
+                            users_list = []
+                            for user in self.users:
+                                users_list.append({
+                                    "username": user,
+                                    "status": "online" if user in self.active_users else "offline"
+                                })
+                            
+                            for client in self.active_users.values():
+                                try:
+                                    client.send(json.dumps({
+                                        "success": True,
+                                        "users": users_list
+                                    }).encode())
+                                except:
+                                    pass
+                            
+                            current_user = None
+                            response = {"success": True, "message": "Logged out successfully"}
+                
                 client_socket.send(json.dumps(response).encode())
 
             except Exception as e:
                 print(f"Error handling client: {e}")
                 break
 
+        # When connection is lost or client disconnects
         if current_user in self.active_users:
             del self.active_users[current_user]
+            
+            # Broadcast updated user list to all active clients
+            users_list = []
+            for user in self.users:
+                users_list.append({
+                    "username": user,
+                    "status": "online" if user in self.active_users else "offline"
+                })
+            
+            for client in self.active_users.values():
+                try:
+                    client.send(json.dumps({
+                        "success": True,
+                        "users": users_list
+                    }).encode())
+                except:
+                    pass
+        
         client_socket.close()
 
     def find_free_port(self, start_port):

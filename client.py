@@ -374,6 +374,7 @@ class ChatClient:
             self.on_connection_lost()
 
     def receive_messages(self):
+        buffer = ""
         while self.running:
             try:
                 data = self.socket.recv(4096).decode()
@@ -381,9 +382,20 @@ class ChatClient:
                     self.on_connection_lost()
                     break
                     
-                message = json.loads(data)
-                self.root.after(0, self.handle_message, message)
+                buffer += data
                 
+                # Process complete JSON messages
+                while True:
+                    try:
+                        message_end = buffer.index("}{") if "}{" in buffer else len(buffer)
+                        message = json.loads(buffer[:message_end+1])
+                        buffer = buffer[message_end+1:]
+                        
+                        self.root.after(0, self.handle_message, message)
+                    except ValueError:
+                        # Incomplete message or no more complete messages
+                        break
+                    
             except Exception as e:
                 if self.running:
                     print(f"Error receiving message: {e}")
@@ -429,17 +441,22 @@ class ChatClient:
                 for user in message["users"]:
                     username = user["username"]
                     status = user["status"]
+                    
+                    # Add "(You)" for the current user
+                    if username == self.username:
+                        username += " (You)"
+                    
                     self.accounts_list.insert("", "end", values=(username, status))
                     self.known_users.add(username)
                 
                 self.user_count_var.set(f"Users found: {len(message['users'])}")
-                    
+
             elif message.get("message") == "Logged out successfully":
                 self.username = None
                 self.status_var.set("Not logged in")
                 self.notebook.select(0)
                 self.clear_messages()
-                    
+            
             elif message.get("message") == "Account deleted":
                 self.username = None
                 self.status_var.set("Not logged in")
