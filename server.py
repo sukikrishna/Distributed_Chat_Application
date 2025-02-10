@@ -98,8 +98,16 @@ class ChatServer:
                             self.users[username] = (self.hash_password(password), {})
                             self.messages[username] = []
                             logging.info(f"New account created: {username} from {address}")
-                            response = {"success": True, "message": "Account created successfully", "username": username}
-            
+                            
+                            # Broadcast updated user list to all clients and include in response
+                            users_list = self.broadcast_user_list()
+                            response = {
+                                "success": True,
+                                "message": "Account created successfully",
+                                "username": username,
+                                "users": users_list
+                            }
+
                     elif cmd == "login":
                         username = msg.get("username")
                         password = msg.get("password")
@@ -286,7 +294,14 @@ class ChatServer:
 
                                 logging.info(f"Account deleted: {current_user}")
                                 current_user = None
-                                response = {"success": True, "message": "Account deleted"}
+                                
+                                # Broadcast updated user list to all clients and include in response
+                                users_list = self.broadcast_user_list()
+                                response = {
+                                    "success": True,
+                                    "message": "Account deleted",
+                                    "users": users_list
+                                }
 
                     elif cmd == "logout":
                         if not current_user:
@@ -347,6 +362,26 @@ class ChatServer:
                     pass
         
         client_socket.close()
+
+    def broadcast_user_list(self):
+        """Helper method to broadcast updated user list to all active clients"""
+        users_list = []
+        for user in self.users:
+            users_list.append({
+                "username": user,
+                "status": "online" if user in self.active_users else "offline"
+            })
+        
+        # Send to all active clients
+        for client in self.active_users.values():
+            try:
+                client.send(json.dumps({
+                    "success": True,
+                    "users": users_list
+                }).encode())
+            except:
+                pass
+        return users_list
 
     def find_free_port(self, start_port):
         port = start_port
