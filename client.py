@@ -3,6 +3,7 @@ import json
 import threading
 import tkinter as tk
 import time
+import argparse
 from tkinter import ttk, messagebox
 from config import Config
 
@@ -37,14 +38,14 @@ class MessageFrame(ttk.Frame):
         content.pack(fill='x', pady=(5, 0))
 
 class ChatClient:
-    def __init__(self):
+    def __init__(self, host, port):
         self.root = tk.Tk()
         self.root.title("Chat Application")
         self.root.geometry("1000x800")
         
         self.config = Config()
-        self.host = self.config.get("host")
-        self.port = self.config.get("port")
+        self.host = host
+        self.port = port
         self.socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         try:
             self.socket.connect((self.host, self.port))
@@ -494,7 +495,12 @@ class ChatClient:
         self.root.destroy()
 
 def main():
-    client = ChatClient()
+    parser = argparse.ArgumentParser(description="Chat Client")
+    parser.add_argument("host", help="Server IP or hostname")
+    parser.add_argument("port", type=int, help="Server port number")
+    args = parser.parse_args()
+
+    client = ChatClient(args.host, args.port)
     client.run()
 
 if __name__ == "__main__":
