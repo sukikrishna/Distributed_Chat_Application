@@ -383,6 +383,7 @@ class ChatServer:
         messages = self.messages[username]
         unread_messages = [m for m in messages if not m["read"]]
         return sorted(unread_messages, key=lambda x: x["timestamp"], reverse=True)[:count]
+        # return sorted(unread_messages, key=lambda x: x["timestamp"])[:count]
 
 
     def find_free_port(self, start_port):
