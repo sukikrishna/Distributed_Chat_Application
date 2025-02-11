@@ -3,15 +3,26 @@ import json
 import threading
 import hashlib
 import re
+import os
 import fnmatch
 from collections import defaultdict
 import time
 import logging
 from config import Config
 
-# Configure logging to print to the console or save to a file
+
+import os
+import logging
+
+# Ensure logs directory exists in the project root
+LOG_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "../logs")
+os.makedirs(LOG_DIR, exist_ok=True)
+
+# Set log file path
+LOG_FILE = os.path.join(LOG_DIR, "server.log")
+
 logging.basicConfig(
-    filename="server.log",  # Change to None to print to console instead
+    filename=LOG_FILE,
     level=logging.INFO,
     format="%(asctime)s - %(levelname)s - %(message)s"
 )

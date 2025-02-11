@@ -1,0 +1,19 @@
+# Ignore Python bytecode and cache
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+# Ignore log files
+server.log
+
+# Ignore configuration files
+chat_config.json
+
+# Ignore virtual environments
+venv/
+.env
+
+# Ignore macOS and Windows specific files
+.DS_Store
+Thumbs.db
