@@ -225,7 +225,7 @@ class ChatServer:
                             logging.warning(f"Unauthorized get_messages request from {address}")
                         else:
                             count = msg.get("count", 5)  # Default to retrieving last 5 messages
-                            messages = self.get_messages(current_user, count)
+                            messages = self.get_messages(current_user)
                             response = {"success": True, "messages": messages}
 
                             # # Get all messages, sorted by timestamp (newest first)
@@ -378,11 +378,11 @@ class ChatServer:
                 pass
         return users_list
 
-    def get_messages(self, username, count=5):
+    def get_messages(self, username):
         """Get messages for a user, excluding unread ones."""
         messages = self.messages[username]
         read_messages = [m for m in messages if m["read"]]
-        return sorted(read_messages, key=lambda x: x["timestamp"], reverse=True)[:count]
+        return sorted(read_messages, key=lambda x: x["timestamp"], reverse=True)
 
     def get_unread_messages(self, username, count=5):
         """Get unread messages for a user."""
