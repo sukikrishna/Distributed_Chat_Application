@@ -5,14 +5,11 @@ import hashlib
 import re
 import os
 import fnmatch
-from collections import defaultdict
 import time
 import logging
+from collections import defaultdict
+
 from config import Config
-
-
-import os
-import logging
 
 # Ensure logs directory exists in the project root
 LOG_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "../logs")
