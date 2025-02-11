@@ -220,8 +220,17 @@ class ChatClient:
 
         status_frame = ttk.Frame(self.accounts_frame)
         status_frame.pack(fill='x', padx=5, pady=5)
+        
+        # Create container for user counts
+        counts_frame = ttk.Frame(status_frame)
+        counts_frame.pack(side='left', fill='x')
+        
         self.user_count_var = tk.StringVar(value="Users found: 0")
+        self.online_count_var = tk.StringVar(value="Online users: 0")
+        
         ttk.Label(status_frame, textvariable=self.user_count_var).pack(side='left')
+        ttk.Label(status_frame, text=" | ").pack(side='left', padx=5)
+        ttk.Label(status_frame, textvariable=self.online_count_var).pack(side='left')
 
     def create_account(self):
         username = self.username_entry.get()
@@ -447,7 +456,11 @@ class ChatClient:
                     self.accounts_list.insert("", "end", values=(username, status))
                     self.known_users.add(username)
                 
-                self.user_count_var.set(f"Users found: {len(message['users'])}")
+                # Update both total and online user counts
+                total_users = len(message['users'])
+                online_users = sum(1 for user in message['users'] if user['status'] == 'online')
+                self.user_count_var.set(f"Users found: {total_users}")
+                self.online_count_var.set(f"Online users: {online_users}")
                     
             elif message.get("message") == "Logged out successfully":
                 self.username = None
