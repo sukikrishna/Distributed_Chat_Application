@@ -126,34 +126,34 @@ class ChatClient:
         right_frame = ttk.Frame(self.chat_frame, padding=5)
         right_frame.pack(side='right', fill='y')
         
-        controls = ttk.LabelFrame(right_frame, text="Controls", padding=5)
+        controls = ttk.LabelFrame(right_frame, text="Message Controls", padding=5)
         controls.pack(fill='x', pady=5)
         
-        ttk.Label(controls, text="Messages to show:").pack()
+        ttk.Label(controls, text="Unread messages to fetch:").pack()
         self.msg_count = ttk.Entry(controls, width=5)
         self.msg_count.insert(0, self.config.get("message_fetch_limit"))
         self.msg_count.pack()
         
-        ttk.Button(controls, text="Check New Messages", 
-                command=self.refresh_unread_messages).pack(fill='x', pady=5)
-        ttk.Button(controls, text="View Message History", 
-                command=self.refresh_messages).pack(fill='x', pady=5)
+        ttk.Button(controls, text="Unread Messages", 
+                command=self.refresh_unread_messages).pack(fill='x', pady=(5, 25))
+        ttk.Button(controls, text="Message History", 
+                command=self.refresh_messages).pack(fill='x', pady=10)
     
-        ttk.Button(controls, text="Delete Selected", 
+        ttk.Button(controls, text="Delete Selected Messages", 
                   command=self.delete_selected_messages).pack(fill='x', pady=5)
 
-        ttk.Button(right_frame, text="Logout",
-            command=self.logout).pack(fill='x', pady=5)
-
-        delete_frame = ttk.LabelFrame(right_frame, text="Delete Account", padding=5)
+        delete_frame = ttk.LabelFrame(right_frame, text="Settings", padding=5)
         delete_frame.pack(fill='x', padx=5, pady=5)
 
         ttk.Label(delete_frame, text="Confirm password:").pack(anchor='w', padx=5, pady=2)
         self.delete_password = ttk.Entry(delete_frame, show="*")
         self.delete_password.pack(fill='x', padx=5, pady=5)
-
+        
         ttk.Button(delete_frame, text="Delete Account",
                   command=self.delete_account).pack(fill='x', padx=5, pady=5)
+        
+        ttk.Button(delete_frame, text="Logout",
+            command=self.logout).pack(fill='x', pady=(25, 5))
 
     def setup_accounts_frame(self):
         controls_frame = ttk.Frame(self.accounts_frame)
@@ -200,15 +200,18 @@ class ChatClient:
 
         self.accounts_list.bind('<Double-1>', self.on_user_select)
         
-        send_frame = ttk.LabelFrame(self.accounts_frame, text="Send Message", padding=5)
+        send_frame = ttk.LabelFrame(self.accounts_frame, text="Send Message (double click on username to select)", padding=5)
         send_frame.pack(fill='x', padx=5, pady=5)
         
-        ttk.Label(send_frame, text="To:").pack()
-        self.recipient_var = tk.StringVar()
-        self.recipient_entry = ttk.Entry(send_frame, textvariable=self.recipient_var, state='readonly')
-        self.recipient_entry.pack(fill='x', pady=5)
+        to_frame = ttk.Frame(send_frame)
+        to_frame.pack(fill='x', pady=0)
         
-        ttk.Label(send_frame, text="Message:").pack()
+        ttk.Label(to_frame, text="To:").pack(side='left', padx=(0, 5))
+        self.recipient_var = tk.StringVar()
+        self.recipient_entry = ttk.Entry(to_frame, textvariable=self.recipient_var, state='readonly')
+        self.recipient_entry.pack(side='left', fill='x', expand=True)
+        
+        ttk.Label(send_frame).pack()
         self.message_text = tk.Text(send_frame, height=4, width=250)
         self.message_text.pack()
         
