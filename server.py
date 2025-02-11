@@ -18,9 +18,9 @@ logging.basicConfig(
 
 class ChatServer:
     def __init__(self, host=None, port=None):
-        config = Config()
-        self.host = host or config.get("host")
-        self.port = port or config.get("port")
+        self.config = Config()
+        self.host = host or self.config.get("host")
+        self.port = port or self.config.get("port")
         self.users = {}  # username -> (password_hash, settings)
         self.messages = defaultdict(list)  # username -> [messages]
         self.active_users = {}  # username -> connection
@@ -224,7 +224,7 @@ class ChatServer:
                             response = {"success": False, "message": "Not logged in"}
                             logging.warning(f"Unauthorized get_messages request from {address}")
                         else:
-                            count = msg.get("count", 5)  # Default to retrieving last 5 messages
+                            count = msg.get("count", self.config.get("message_fetch_limit"))
                             messages = self.get_messages(current_user)
                             response = {"success": True, "messages": messages}
 
@@ -244,7 +244,7 @@ class ChatServer:
                             response = {"success": False, "message": "Not logged in"}
                             logging.warning(f"Unauthorized get_undelivered request from {address}")
                         else:
-                            count = msg.get("count", 5)  # Default to retrieving last 5 undelivered messages
+                            count = msg.get("count", self.config.get("message_fetch_limit"))
 
                             unread = self.get_unread_messages(current_user, count)
                             
@@ -384,7 +384,7 @@ class ChatServer:
         read_messages = [m for m in messages if m["read"]]
         return sorted(read_messages, key=lambda x: x["timestamp"], reverse=True)
 
-    def get_unread_messages(self, username, count=5):
+    def get_unread_messages(self, username, count):
         """Get unread messages for a user."""
         messages = self.messages[username]
         unread_messages = [m for m in messages if not m["read"]]
