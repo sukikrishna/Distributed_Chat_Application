@@ -49,8 +49,7 @@ class ChatServer:
 
     def get_unread_count(self, username):
         """Get count of messages received while user was offline."""
-        return len([msg for msg in self.messages[username] 
-                   if not msg["read"] and msg.get("delivered_while_offline", True)])
+        return len([msg for msg in self.messages[username] if not msg["read"]])
 
     def handle_client(self, client_socket, address):
         logging.info(f"New connection from {address}")
