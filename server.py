@@ -224,19 +224,20 @@ class ChatServer:
                             response = {"success": False, "message": "Not logged in"}
                             logging.warning(f"Unauthorized get_messages request from {address}")
                         else:
-                            count = msg.get("count", 10)  # Default to retrieving last 10 messages
-                            messages = self.messages[current_user]
+                            count = msg.get("count", 5)  # Default to retrieving last 5 messages
+                            messages = self.get_messages(current_user, count)
+                            response = {"success": True, "messages": messages}
 
-                            # Get all messages, sorted by timestamp (newest first)
-                            sorted_messages = sorted(messages, key=lambda x: x["timestamp"], reverse=True)
+                            # # Get all messages, sorted by timestamp (newest first)
+                            # sorted_messages = sorted(messages, key=lambda x: x["timestamp"], reverse=True)
 
-                            # Mark messages as read
-                            for m in sorted_messages:
-                                if not m["read"]:
-                                    m["read"] = True
+                            # # Mark messages as read
+                            # for m in sorted_messages:
+                            #     if not m["read"]:
+                            #         m["read"] = True
 
-                            response = {"success": True, "messages": sorted_messages}
-                            logging.info(f"User '{current_user}' retrieved {len(sorted_messages)} messages")
+                            # response = {"success": True, "messages": sorted_messages}
+                            logging.info(f"User '{current_user}' retrieved {len(messages)} messages")
 
                     elif cmd == "get_undelivered":
                         if not current_user:
@@ -244,21 +245,15 @@ class ChatServer:
                             logging.warning(f"Unauthorized get_undelivered request from {address}")
                         else:
                             count = msg.get("count", 10)  # Default to retrieving last 10 undelivered messages
-                            messages = self.messages[current_user]
 
-                            # Get only undelivered messages
-                            undelivered = sorted(
-                                [m for m in messages if not m["read"] and m.get("delivered_while_offline", True)],
-                                key=lambda x: x["timestamp"],
-                                reverse=True
-                            )[:count]  # Limit to requested count
-
-                            # Mark as read
-                            for m in undelivered:
+                            unread = self.get_unread_messages(current_user, count)
+                            
+                            # Mark messages as read
+                            for m in unread:
                                 m["read"] = True
-
-                            response = {"success": True, "messages": undelivered}
-                            logging.info(f"User '{current_user}' retrieved {len(undelivered)} undelivered messages")
+                                
+                            response = {"success": True, "messages": unread}
+                            logging.info(f"User '{current_user}' retrieved {len(unread)} undelivered messages")
 
                     elif cmd == "delete_messages":
                         if not current_user:
@@ -382,6 +377,19 @@ class ChatServer:
             except:
                 pass
         return users_list
+
+    def get_messages(self, username, count=10):
+        """Get messages for a user, excluding unread ones."""
+        messages = self.messages[username]
+        read_messages = [m for m in messages if m["read"]]
+        return sorted(read_messages, key=lambda x: x["timestamp"], reverse=True)[:count]
+
+    def get_unread_messages(self, username, count=10):
+        """Get unread messages for a user."""
+        messages = self.messages[username]
+        unread_messages = [m for m in messages if not m["read"]]
+        return sorted(unread_messages, key=lambda x: x["timestamp"], reverse=True)[:count]
+
 
     def find_free_port(self, start_port):
         port = start_port
