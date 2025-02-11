@@ -244,7 +244,7 @@ class ChatServer:
                             response = {"success": False, "message": "Not logged in"}
                             logging.warning(f"Unauthorized get_undelivered request from {address}")
                         else:
-                            count = msg.get("count", 10)  # Default to retrieving last 10 undelivered messages
+                            count = msg.get("count", 5)  # Default to retrieving last 5 undelivered messages
 
                             unread = self.get_unread_messages(current_user, count)
                             
@@ -378,13 +378,13 @@ class ChatServer:
                 pass
         return users_list
 
-    def get_messages(self, username, count=10):
+    def get_messages(self, username, count=5):
         """Get messages for a user, excluding unread ones."""
         messages = self.messages[username]
         read_messages = [m for m in messages if m["read"]]
         return sorted(read_messages, key=lambda x: x["timestamp"], reverse=True)[:count]
 
-    def get_unread_messages(self, username, count=10):
+    def get_unread_messages(self, username, count=5):
         """Get unread messages for a user."""
         messages = self.messages[username]
         unread_messages = [m for m in messages if not m["read"]]

@@ -417,18 +417,18 @@ class ChatClient:
                 else:
                     messagebox.showinfo("Account Created", "Account created successfully! Please log in to continue.")
             elif message.get("message_type") == "new_message":
-                current_tab = self.notebook.select()
-                chat_tab_active = self.notebook.index(current_tab) == 2
+                # current_tab = self.notebook.select()
+                # chat_tab_active = self.notebook.index(current_tab) == 2
                 
-                if chat_tab_active:
-                    new_message = message["message"]
-                    frame = MessageFrame(self.messages_frame, new_message)
-                    frame.message_id = new_message["id"]
-                    frame.pack(fill='x', padx=5, pady=2)
-                else:
-                    self.has_unread_messages = True
-                    messagebox.showinfo("New Message", 
-                        f"New message from {message['message']['from']}")
+                # if chat_tab_active:
+                #     new_message = message["message"]
+                #     frame = MessageFrame(self.messages_frame, new_message)
+                #     frame.message_id = new_message["id"]
+                #     frame.pack(fill='x', padx=5, pady=2)
+                # else:
+                self.has_unread_messages = True
+                messagebox.showinfo("New Message", 
+                    f"New message from {message['message']['from']}")
                     
             elif "messages" in message:
                 self.clear_messages()
