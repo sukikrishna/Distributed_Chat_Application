@@ -38,14 +38,14 @@ class MessageFrame(ttk.Frame):
         content.pack(fill='x', pady=(5, 0))
 
 class ChatClient:
-    def __init__(self, host, port):
+    def __init__(self, host):
         self.root = tk.Tk()
         self.root.title("Chat Application")
         self.root.geometry("1000x800")
         
         self.config = Config()
         self.host = host
-        self.port = port
+        self.port = self.config.get("port")
         self.socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         try:
             self.socket.connect((self.host, self.port))
@@ -493,10 +493,9 @@ class ChatClient:
 def main():
     parser = argparse.ArgumentParser(description="Chat Client")
     parser.add_argument("host", help="Server IP or hostname")
-    parser.add_argument("port", type=int, help="Server port number")
     args = parser.parse_args()
 
-    client = ChatClient(args.host, args.port)
+    client = ChatClient(args.host)
     client.run()
 
 if __name__ == "__main__":
