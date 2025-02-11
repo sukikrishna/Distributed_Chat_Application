@@ -55,10 +55,7 @@ class ChatClient:
             return
             
         self.username = None
-        self.known_users = set()  # Track known users for dropdown
-        self.has_unread_messages = False  # Track if there are unread messages
         self.setup_gui()
-        self.message_check_thread = None
         self.running = True
         threading.Thread(target=self.receive_messages, daemon=True).start()
         
@@ -332,7 +329,6 @@ class ChatClient:
             "cmd": "get_undelivered",
             "count": count
         })
-        self.has_unread_messages = False
 
     def on_user_select(self, event):
         selection = self.accounts_list.selection()
@@ -422,20 +418,9 @@ class ChatClient:
                     self.status_var.set(f"Logged in as: {self.username}")
                     self.notebook.select(1)
                     messagebox.showinfo("Messages", f"You have {message['unread']} unread messages")
-                    self.has_unread_messages = True
                 else:
                     messagebox.showinfo("Account Created", "Account created successfully! Please log in to continue.")
             elif message.get("message_type") == "new_message":
-                # current_tab = self.notebook.select()
-                # chat_tab_active = self.notebook.index(current_tab) == 2
-                
-                # if chat_tab_active:
-                #     new_message = message["message"]
-                #     frame = MessageFrame(self.messages_frame, new_message)
-                #     frame.message_id = new_message["id"]
-                #     frame.pack(fill='x', padx=5, pady=2)
-                # else:
-                self.has_unread_messages = True
                 messagebox.showinfo("New Message", 
                     f"New message from {message['message']['from']}")
                     
@@ -448,13 +433,11 @@ class ChatClient:
                     
             elif "users" in message:
                 self.accounts_list.delete(*self.accounts_list.get_children())
-                self.known_users.clear()
                 
                 for user in message["users"]:
                     username = user["username"]
                     status = user["status"]
                     self.accounts_list.insert("", "end", values=(username, status))
-                    self.known_users.add(username)
                 
                 # Update both total and online user counts
                 total_users = len(message['users'])

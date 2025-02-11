@@ -18,6 +18,10 @@ logging.basicConfig(
 
 class ChatServer:
     def __init__(self, host=None, port=None):
+
+        #Clear log file on server restart
+        open("server.log", "w").close() # Clears log file
+
         self.config = Config()
         self.host = host or self.config.get("host")
         self.port = port or self.config.get("port")
@@ -227,16 +231,6 @@ class ChatServer:
                             count = msg.get("count", self.config.get("message_fetch_limit"))
                             messages = self.get_messages(current_user)
                             response = {"success": True, "messages": messages}
-
-                            # # Get all messages, sorted by timestamp (newest first)
-                            # sorted_messages = sorted(messages, key=lambda x: x["timestamp"], reverse=True)
-
-                            # # Mark messages as read
-                            # for m in sorted_messages:
-                            #     if not m["read"]:
-                            #         m["read"] = True
-
-                            # response = {"success": True, "messages": sorted_messages}
                             logging.info(f"User '{current_user}' retrieved {len(messages)} messages")
 
                     elif cmd == "get_undelivered":
