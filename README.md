@@ -1,5 +1,6 @@
 # Chat Application
 
+![alt text](img/bubbles.png)
 ## Overview
 
 This project implements a real-time chat application with two different wire protocols:
@@ -91,13 +92,24 @@ The `run_chat.py` script provides a command-line interface to start the chat ser
   ```
 - Suitable for applications requiring optimized network performance.
 
+## Screenshots
+
+Here are some screenshots of the chat application:
+
+### Login Screen: 
+![alt text](img/login.png)
+### User Contacts List: 
+![alt text](img/users.png)
+### Chats Interface:
+![alt text](img/chats.png)
+
 ## Features
 
 - User Authentication (Login, Registration, Logout)
 - Real-time Messaging (Send, Receive, Delete Messages)
 - Online/Offline User Tracking
+- Fetching Specific Number of Unread Messages
 - Message History Retrieval
-- Secure Password Storage (SHA-256 Hashing)
 
 ## Contributing
 
