@@ -1,0 +1,571 @@
+
+
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" data-content_root="./">
+<head>
+  <meta charset="utf-8" /><meta name="viewport" content="width=device-width, initial-scale=1" />
+
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>json_protocol package &mdash; Chap Application 0.1 documentation</title>
+      <link rel="stylesheet" type="text/css" href="_static/pygments.css?v=80d5e7a1" />
+      <link rel="stylesheet" type="text/css" href="_static/css/theme.css?v=e59714d7" />
+
+  
+      <script src="_static/jquery.js?v=5d32c60e"></script>
+      <script src="_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
+      <script src="_static/documentation_options.js?v=2709fde1"></script>
+      <script src="_static/doctools.js?v=9bcbadda"></script>
+      <script src="_static/sphinx_highlight.js?v=dc90522c"></script>
+    <script src="_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="genindex.html" />
+    <link rel="search" title="Search" href="search.html" />
+    <link rel="next" title="config module" href="config.html" />
+    <link rel="prev" title="custom_protocol package" href="custom_protocol.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+
+          
+          
+          <a href="index.html" class="icon icon-home">
+            Chap Application
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <p class="caption" role="heading"><span class="caption-text">Contents:</span></p>
+<ul class="current">
+<li class="toctree-l1 current"><a class="reference internal" href="modules.html">Modules</a><ul class="current">
+<li class="toctree-l2"><a class="reference internal" href="custom_protocol.html">custom_protocol package</a></li>
+<li class="toctree-l2 current"><a class="current reference internal" href="#">json_protocol package</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="#submodules">Submodules</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#module-json_protocol.json_client">json_protocol.json_client module</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="#json_protocol.json_client.ChatClient"><code class="docutils literal notranslate"><span class="pre">ChatClient</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#json_protocol.json_client.main"><code class="docutils literal notranslate"><span class="pre">main()</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="#module-json_protocol.json_server">json_protocol.json_server module</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="#json_protocol.json_server.ChatServer"><code class="docutils literal notranslate"><span class="pre">ChatServer</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="#module-json_protocol">Module contents</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="config.html">config module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="utils.html">utils module</a></li>
+</ul>
+</li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="index.html">Chap Application</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="index.html" class="icon icon-home" aria-label="Home"></a></li>
+          <li class="breadcrumb-item"><a href="modules.html">Modules</a></li>
+      <li class="breadcrumb-item active">json_protocol package</li>
+      <li class="wy-breadcrumbs-aside">
+            <a href="_sources/json_protocol.rst.txt" rel="nofollow"> View page source</a>
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <section id="json-protocol-package">
+<h1>json_protocol package<a class="headerlink" href="#json-protocol-package" title="Link to this heading"></a></h1>
+<section id="submodules">
+<h2>Submodules<a class="headerlink" href="#submodules" title="Link to this heading"></a></h2>
+</section>
+<section id="module-json_protocol.json_client">
+<span id="json-protocol-json-client-module"></span><h2>json_protocol.json_client module<a class="headerlink" href="#module-json_protocol.json_client" title="Link to this heading"></a></h2>
+<dl class="py class">
+<dt class="sig sig-object py" id="json_protocol.json_client.ChatClient">
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">json_protocol.json_client.</span></span><span class="sig-name descname"><span class="pre">ChatClient</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">host</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">port</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/json_protocol/json_client.html#ChatClient"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#json_protocol.json_client.ChatClient" title="Link to this definition"></a></dt>
+<dd><p>Bases: <code class="xref py py-class docutils literal notranslate"><span class="pre">object</span></code></p>
+<p>A GUI-based chat client for sending and receiving messages.</p>
+<dl class="py method">
+<dt class="sig sig-object py" id="json_protocol.json_client.ChatClient.clear_messages">
+<span class="sig-name descname"><span class="pre">clear_messages</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/json_protocol/json_client.html#ChatClient.clear_messages"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#json_protocol.json_client.ChatClient.clear_messages" title="Link to this definition"></a></dt>
+<dd><p>Clears all messages displayed in the chat window.</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="json_protocol.json_client.ChatClient.create_account">
+<span class="sig-name descname"><span class="pre">create_account</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/json_protocol/json_client.html#ChatClient.create_account"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#json_protocol.json_client.ChatClient.create_account" title="Link to this definition"></a></dt>
+<dd><p>Sends a request to the server to create a new account.</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="json_protocol.json_client.ChatClient.delete_account">
+<span class="sig-name descname"><span class="pre">delete_account</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/json_protocol/json_client.html#ChatClient.delete_account"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#json_protocol.json_client.ChatClient.delete_account" title="Link to this definition"></a></dt>
+<dd><p>Sends a request to the server to delete the user’s account.</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="json_protocol.json_client.ChatClient.delete_message">
+<span class="sig-name descname"><span class="pre">delete_message</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">msg_id</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/json_protocol/json_client.html#ChatClient.delete_message"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#json_protocol.json_client.ChatClient.delete_message" title="Link to this definition"></a></dt>
+<dd><p>Deletes a specific message.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>msg_id</strong> (<em>int</em>) – ID of the message to delete.</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="json_protocol.json_client.ChatClient.delete_selected_messages">
+<span class="sig-name descname"><span class="pre">delete_selected_messages</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/json_protocol/json_client.html#ChatClient.delete_selected_messages"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#json_protocol.json_client.ChatClient.delete_selected_messages" title="Link to this definition"></a></dt>
+<dd><p>Deletes all selected messages in the chat window.</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="json_protocol.json_client.ChatClient.handle_message">
+<span class="sig-name descname"><span class="pre">handle_message</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">message</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/json_protocol/json_client.html#ChatClient.handle_message"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#json_protocol.json_client.ChatClient.handle_message" title="Link to this definition"></a></dt>
+<dd><p>Handles incoming messages from the server.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>message</strong> (<em>dict</em>) – The received message.</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="json_protocol.json_client.ChatClient.login">
+<span class="sig-name descname"><span class="pre">login</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/json_protocol/json_client.html#ChatClient.login"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#json_protocol.json_client.ChatClient.login" title="Link to this definition"></a></dt>
+<dd><p>Sends a login request to the server.</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="json_protocol.json_client.ChatClient.logout">
+<span class="sig-name descname"><span class="pre">logout</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/json_protocol/json_client.html#ChatClient.logout"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#json_protocol.json_client.ChatClient.logout" title="Link to this definition"></a></dt>
+<dd><p>Logs out the current user from the server.</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="json_protocol.json_client.ChatClient.on_closing">
+<span class="sig-name descname"><span class="pre">on_closing</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/json_protocol/json_client.html#ChatClient.on_closing"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#json_protocol.json_client.ChatClient.on_closing" title="Link to this definition"></a></dt>
+<dd><p>Handles cleanup when the chat window is closed.</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="json_protocol.json_client.ChatClient.on_connection_lost">
+<span class="sig-name descname"><span class="pre">on_connection_lost</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/json_protocol/json_client.html#ChatClient.on_connection_lost"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#json_protocol.json_client.ChatClient.on_connection_lost" title="Link to this definition"></a></dt>
+<dd><p>Handles server disconnection and shuts down the client.</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="json_protocol.json_client.ChatClient.on_user_select">
+<span class="sig-name descname"><span class="pre">on_user_select</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">event</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/json_protocol/json_client.html#ChatClient.on_user_select"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#json_protocol.json_client.ChatClient.on_user_select" title="Link to this definition"></a></dt>
+<dd><p>Handles user selection from the accounts list.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>event</strong> (<em>tk.Event</em>) – The triggered event.</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="json_protocol.json_client.ChatClient.receive_messages">
+<span class="sig-name descname"><span class="pre">receive_messages</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/json_protocol/json_client.html#ChatClient.receive_messages"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#json_protocol.json_client.ChatClient.receive_messages" title="Link to this definition"></a></dt>
+<dd><p>Continuously receives and processes messages from the server.</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="json_protocol.json_client.ChatClient.refresh_messages">
+<span class="sig-name descname"><span class="pre">refresh_messages</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/json_protocol/json_client.html#ChatClient.refresh_messages"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#json_protocol.json_client.ChatClient.refresh_messages" title="Link to this definition"></a></dt>
+<dd><p>Fetches and displays the message history.</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="json_protocol.json_client.ChatClient.refresh_unread_messages">
+<span class="sig-name descname"><span class="pre">refresh_unread_messages</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/json_protocol/json_client.html#ChatClient.refresh_unread_messages"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#json_protocol.json_client.ChatClient.refresh_unread_messages" title="Link to this definition"></a></dt>
+<dd><p>Fetches and displays only unread messages.</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="json_protocol.json_client.ChatClient.run">
+<span class="sig-name descname"><span class="pre">run</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/json_protocol/json_client.html#ChatClient.run"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#json_protocol.json_client.ChatClient.run" title="Link to this definition"></a></dt>
+<dd><p>Runs the chat client application.</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="json_protocol.json_client.ChatClient.search_accounts">
+<span class="sig-name descname"><span class="pre">search_accounts</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/json_protocol/json_client.html#ChatClient.search_accounts"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#json_protocol.json_client.ChatClient.search_accounts" title="Link to this definition"></a></dt>
+<dd><p>Sends a request to the server to search for users.</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="json_protocol.json_client.ChatClient.send_command">
+<span class="sig-name descname"><span class="pre">send_command</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">command</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/json_protocol/json_client.html#ChatClient.send_command"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#json_protocol.json_client.ChatClient.send_command" title="Link to this definition"></a></dt>
+<dd><p>Sends a JSON command to the server.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>command</strong> (<em>dict</em>) – The command dictionary to send.</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="json_protocol.json_client.ChatClient.send_message">
+<span class="sig-name descname"><span class="pre">send_message</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/json_protocol/json_client.html#ChatClient.send_message"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#json_protocol.json_client.ChatClient.send_message" title="Link to this definition"></a></dt>
+<dd><p>Sends a message to the selected recipient.</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="json_protocol.json_client.ChatClient.setup_accounts_frame">
+<span class="sig-name descname"><span class="pre">setup_accounts_frame</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/json_protocol/json_client.html#ChatClient.setup_accounts_frame"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#json_protocol.json_client.ChatClient.setup_accounts_frame" title="Link to this definition"></a></dt>
+<dd><p>Configures the user search and account list UI.</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="json_protocol.json_client.ChatClient.setup_auth_frame">
+<span class="sig-name descname"><span class="pre">setup_auth_frame</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/json_protocol/json_client.html#ChatClient.setup_auth_frame"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#json_protocol.json_client.ChatClient.setup_auth_frame" title="Link to this definition"></a></dt>
+<dd><p>Configures the login and registration UI components.</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="json_protocol.json_client.ChatClient.setup_chat_frame">
+<span class="sig-name descname"><span class="pre">setup_chat_frame</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/json_protocol/json_client.html#ChatClient.setup_chat_frame"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#json_protocol.json_client.ChatClient.setup_chat_frame" title="Link to this definition"></a></dt>
+<dd><p>Configures the chat window layout and message display.</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="json_protocol.json_client.ChatClient.setup_gui">
+<span class="sig-name descname"><span class="pre">setup_gui</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/json_protocol/json_client.html#ChatClient.setup_gui"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#json_protocol.json_client.ChatClient.setup_gui" title="Link to this definition"></a></dt>
+<dd><p>Sets up the graphical user interface for the chat client.</p>
+</dd></dl>
+
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="json_protocol.json_client.main">
+<span class="sig-prename descclassname"><span class="pre">json_protocol.json_client.</span></span><span class="sig-name descname"><span class="pre">main</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/json_protocol/json_client.html#main"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#json_protocol.json_client.main" title="Link to this definition"></a></dt>
+<dd><p>Parses command-line arguments and starts the chat client.</p>
+</dd></dl>
+
+</section>
+<section id="module-json_protocol.json_server">
+<span id="json-protocol-json-server-module"></span><h2>json_protocol.json_server module<a class="headerlink" href="#module-json_protocol.json_server" title="Link to this heading"></a></h2>
+<dl class="py class">
+<dt class="sig sig-object py" id="json_protocol.json_server.ChatServer">
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">json_protocol.json_server.</span></span><span class="sig-name descname"><span class="pre">ChatServer</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">host</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">port</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/json_protocol/json_server.html#ChatServer"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#json_protocol.json_server.ChatServer" title="Link to this definition"></a></dt>
+<dd><p>Bases: <code class="xref py py-class docutils literal notranslate"><span class="pre">object</span></code></p>
+<p>A multi-threaded chat server that handles client connections, user authentication,
+and message exchange using JSON protocol.</p>
+<dl class="py attribute">
+<dt class="sig sig-object py" id="json_protocol.json_server.ChatServer.host">
+<span class="sig-name descname"><span class="pre">host</span></span><a class="headerlink" href="#json_protocol.json_server.ChatServer.host" title="Link to this definition"></a></dt>
+<dd><p>Server host address.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>str</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="json_protocol.json_server.ChatServer.port">
+<span class="sig-name descname"><span class="pre">port</span></span><a class="headerlink" href="#json_protocol.json_server.ChatServer.port" title="Link to this definition"></a></dt>
+<dd><p>Server port number.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>int</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="json_protocol.json_server.ChatServer.users">
+<span class="sig-name descname"><span class="pre">users</span></span><a class="headerlink" href="#json_protocol.json_server.ChatServer.users" title="Link to this definition"></a></dt>
+<dd><p>Stores user credentials and settings.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>dict</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="json_protocol.json_server.ChatServer.messages">
+<span class="sig-name descname"><span class="pre">messages</span></span><a class="headerlink" href="#json_protocol.json_server.ChatServer.messages" title="Link to this definition"></a></dt>
+<dd><p>Stores messages per user.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>defaultdict</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="json_protocol.json_server.ChatServer.active_users">
+<span class="sig-name descname"><span class="pre">active_users</span></span><a class="headerlink" href="#json_protocol.json_server.ChatServer.active_users" title="Link to this definition"></a></dt>
+<dd><p>Tracks active user connections.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>dict</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="json_protocol.json_server.ChatServer.message_id_counter">
+<span class="sig-name descname"><span class="pre">message_id_counter</span></span><a class="headerlink" href="#json_protocol.json_server.ChatServer.message_id_counter" title="Link to this definition"></a></dt>
+<dd><p>Counter for message IDs.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>int</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="json_protocol.json_server.ChatServer.lock">
+<span class="sig-name descname"><span class="pre">lock</span></span><a class="headerlink" href="#json_protocol.json_server.ChatServer.lock" title="Link to this definition"></a></dt>
+<dd><p>Lock for thread-safe operations.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>threading.Lock</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="json_protocol.json_server.ChatServer.server">
+<span class="sig-name descname"><span class="pre">server</span></span><a class="headerlink" href="#json_protocol.json_server.ChatServer.server" title="Link to this definition"></a></dt>
+<dd><p>Server socket.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>socket.socket</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="json_protocol.json_server.ChatServer.running">
+<span class="sig-name descname"><span class="pre">running</span></span><a class="headerlink" href="#json_protocol.json_server.ChatServer.running" title="Link to this definition"></a></dt>
+<dd><p>Indicates whether the server is running.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>bool</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="json_protocol.json_server.ChatServer.broadcast_user_list">
+<span class="sig-name descname"><span class="pre">broadcast_user_list</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/json_protocol/json_server.html#ChatServer.broadcast_user_list"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#json_protocol.json_server.ChatServer.broadcast_user_list" title="Link to this definition"></a></dt>
+<dd><p>Broadcasts the updated user list to all active clients.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Returns<span class="colon">:</span></dt>
+<dd class="field-odd"><p>List of users with online/offline status.</p>
+</dd>
+<dt class="field-even">Return type<span class="colon">:</span></dt>
+<dd class="field-even"><p>list</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="json_protocol.json_server.ChatServer.find_free_port">
+<span class="sig-name descname"><span class="pre">find_free_port</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">start_port</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/json_protocol/json_server.html#ChatServer.find_free_port"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#json_protocol.json_server.ChatServer.find_free_port" title="Link to this definition"></a></dt>
+<dd><p>Finds an available port starting from a given port.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>start_port</strong> (<em>int</em>) – Starting port number.</p>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p>First available port number.</p>
+</dd>
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>int</p>
+</dd>
+<dt class="field-even">Raises<span class="colon">:</span></dt>
+<dd class="field-even"><p><strong>RuntimeError</strong> – If no free ports are available.</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="json_protocol.json_server.ChatServer.get_messages">
+<span class="sig-name descname"><span class="pre">get_messages</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">username</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/json_protocol/json_server.html#ChatServer.get_messages"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#json_protocol.json_server.ChatServer.get_messages" title="Link to this definition"></a></dt>
+<dd><p>Retrieves read messages for a user.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>username</strong> (<em>str</em>) – Username to retrieve messages for.</p>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p>List of sorted read messages.</p>
+</dd>
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>list</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="json_protocol.json_server.ChatServer.get_unread_count">
+<span class="sig-name descname"><span class="pre">get_unread_count</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">username</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/json_protocol/json_server.html#ChatServer.get_unread_count"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#json_protocol.json_server.ChatServer.get_unread_count" title="Link to this definition"></a></dt>
+<dd><p>Returns the count of unread messages for a user.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>username</strong> (<em>str</em>) – Username to check messages for.</p>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p>Number of unread messages.</p>
+</dd>
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>int</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="json_protocol.json_server.ChatServer.get_unread_messages">
+<span class="sig-name descname"><span class="pre">get_unread_messages</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">username</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">count</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/json_protocol/json_server.html#ChatServer.get_unread_messages"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#json_protocol.json_server.ChatServer.get_unread_messages" title="Link to this definition"></a></dt>
+<dd><p>Retrieves unread messages for a user.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>username</strong> (<em>str</em>) – Username to retrieve messages for.</p></li>
+<li><p><strong>count</strong> (<em>int</em>) – Number of messages to retrieve.</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p>List of sorted unread messages.</p>
+</dd>
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>list</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="json_protocol.json_server.ChatServer.handle_client">
+<span class="sig-name descname"><span class="pre">handle_client</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">client_socket</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">address</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/json_protocol/json_server.html#ChatServer.handle_client"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#json_protocol.json_server.ChatServer.handle_client" title="Link to this definition"></a></dt>
+<dd><p>Handles communication with a connected client.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>client_socket</strong> (<em>socket.socket</em>) – Client socket object.</p></li>
+<li><p><strong>address</strong> (<em>tuple</em>) – Client’s IP address and port.</p></li>
+</ul>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="json_protocol.json_server.ChatServer.hash_password">
+<span class="sig-name descname"><span class="pre">hash_password</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">password</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/json_protocol/json_server.html#ChatServer.hash_password"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#json_protocol.json_server.ChatServer.hash_password" title="Link to this definition"></a></dt>
+<dd><p>Hashes a password using SHA-256.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>password</strong> (<em>str</em>) – Password to be hashed.</p>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p>Hashed password.</p>
+</dd>
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>str</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="json_protocol.json_server.ChatServer.start">
+<span class="sig-name descname"><span class="pre">start</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/json_protocol/json_server.html#ChatServer.start"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#json_protocol.json_server.ChatServer.start" title="Link to this definition"></a></dt>
+<dd><p>Starts the chat server.</p>
+<p>This method initializes the server, finds an available port, binds the server to the
+host and port, and starts listening for incoming client connections. It runs in
+a loop to accept and handle clients until stopped.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Raises<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>RuntimeError</strong> – If no free ports are available for the server.</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="json_protocol.json_server.ChatServer.stop">
+<span class="sig-name descname"><span class="pre">stop</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/json_protocol/json_server.html#ChatServer.stop"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#json_protocol.json_server.ChatServer.stop" title="Link to this definition"></a></dt>
+<dd><p>Stops the chat server.</p>
+<p>This method gracefully shuts down the server by closing the socket
+and stopping the running server loop.</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="json_protocol.json_server.ChatServer.validate_password">
+<span class="sig-name descname"><span class="pre">validate_password</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">password</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/json_protocol/json_server.html#ChatServer.validate_password"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#json_protocol.json_server.ChatServer.validate_password" title="Link to this definition"></a></dt>
+<dd><p>Validates password strength.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>password</strong> (<em>str</em>) – Password to be validated.</p>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p>True if password meets requirements, False otherwise.</p>
+</dd>
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>bool</p>
+</dd>
+</dl>
+</dd></dl>
+
+</dd></dl>
+
+</section>
+<section id="module-json_protocol">
+<span id="module-contents"></span><h2>Module contents<a class="headerlink" href="#module-json_protocol" title="Link to this heading"></a></h2>
+</section>
+</section>
+
+
+           </div>
+          </div>
+          <footer><div class="rst-footer-buttons" role="navigation" aria-label="Footer">
+        <a href="custom_protocol.html" class="btn btn-neutral float-left" title="custom_protocol package" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
+        <a href="config.html" class="btn btn-neutral float-right" title="config module" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
+    </div>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2025, Manasvi Goyal and Sukanya Krishna.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>
