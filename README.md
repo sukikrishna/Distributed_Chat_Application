@@ -101,17 +101,17 @@ Here are some screenshots of the chat application:
 
 ### Login Screen: 
 <p align="center">
-  <img src="img/login.png" width="600">
+  <img src="img/login.png" width="570">
 </p>
 
 ### User Contacts List: 
 <p align="center">
-  <img src="img/users.png" width="600">
+  <img src="img/users.png" width="570">
 </p>
 
 ### Chats Interface:
 <p align="center">
-  <img src="img/chats.png" width="600">
+  <img src="img/chats.png" width="570">
 </p>
 
 ## Features

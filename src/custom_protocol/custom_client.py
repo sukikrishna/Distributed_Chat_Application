@@ -36,7 +36,7 @@ class ChatClient:
             port (int): The port number to connect to.
         """
         self.root = tk.Tk()
-        self.root.title("Chat Application (Custom Wire Protocol)")
+        self.root.title("Chat Application")
         self.root.geometry("1000x800")
         
         self.config = Config()
