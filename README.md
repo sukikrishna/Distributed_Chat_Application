@@ -1,7 +1,7 @@
 # Chat Application
 
 <p align="center">
-  <img src="img/bubbles.png">
+  <img src="img/msg.png">
 </p>
 
 ## Overview
@@ -101,17 +101,17 @@ Here are some screenshots of the chat application:
 
 ### Login Screen: 
 <p align="center">
-  <img src="img/login.png" width="700">
+  <img src="img/login.png" width="600">
 </p>
 
 ### User Contacts List: 
 <p align="center">
-  <img src="img/users.png" width="700">
+  <img src="img/users.png" width="600">
 </p>
 
 ### Chats Interface:
 <p align="center">
-  <img src="img/chats.png" width="700">
+  <img src="img/chats.png" width="600">
 </p>
 
 ## Features
