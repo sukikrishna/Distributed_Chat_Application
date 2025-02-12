@@ -468,7 +468,8 @@ class ChatClient:
                 self.status_var.set("Not logged in")
                 self.notebook.select(0)
                 self.clear_messages()
-                    
+                messagebox.showinfo("Logout", "Logged out successfully")
+
             elif message.get("message") == "Account deleted":
                 self.username = None
                 self.status_var.set("Not logged in")

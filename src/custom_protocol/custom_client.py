@@ -595,7 +595,7 @@ class ChatClient:
             self.notebook.select(1)  # Switch to chat tab
 
     def on_closing(self):
-        """Handles cleanup when the chat window is closed."""s
+        """Handles cleanup when the chat window is closed."""
         self.running = False
         if self.username:
             try:

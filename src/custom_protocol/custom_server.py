@@ -54,7 +54,7 @@ class ChatServer:
             port (int, optional): The server port. Defaults to `Config` value.
         """
         # Clear log file on server restart
-        open("server.log", "w").close()
+        open(LOG_FILE, "w").close()
 
         self.config = Config()
         self.host = host or self.config.get("host")
