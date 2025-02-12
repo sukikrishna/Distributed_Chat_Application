@@ -1,132 +1,108 @@
-# Chat Application (Starter Code)
+# Chat Application
 
 ## Overview
-This is a client-server chat application that supports two implementations for message communication:
-1. **Custom Binary Protocol (Efficient & Minimal Overhead)**
-2. **JSON Protocol (Readable & Easy to Debug)**
 
-The application enables:
-- User authentication (account creation & login)
-- Real-time messaging between clients
-- PyQt-based GUI for a seamless chat experience
-- Dynamic configuration via GUI (no manual file editing required)
-- Full unit test coverage using `pytest`
+This project implements a real-time chat application with two different wire protocols:
 
----
+- **Custom Wire Protocol**: A binary format designed for efficient message exchange.
+- **JSON Wire Protocol**: A structured, human-readable format for communication.
 
-## **Project Structure**
-```
-chat_app/
-│── src/
-│   ├── server.py            # Chat server implementation
-│   ├── client.py            # Chat client implementation
-│   ├── protocol.py          # Custom Binary Protocol implementation
-│   ├── json_protocol.py     # JSON-based Protocol implementation
-│   ├── database.py          # Database handling (SQLite)
-│   ├── config.py            # Dynamic Configuration Handling
-│   ├── gui.py               # PyQt GUI with integrated settings panel
-│   ├── logger.py            # Logging utilities
-│   ├── utils.py             # Helper functions
-│── tests/
-│   ├── test_server.py       # Unit tests for server
-│   ├── test_client.py       # Unit tests for client
-│   ├── test_protocol.py     # Unit tests for protocol
-│   ├── test_database.py     # Unit tests for database
-│   ├── test_gui.py          # Unit tests for GUI
-│── requirements.txt         # Dependencies
-│── README.md                # Documentation & setup guide
-│── engineering_notebook.md  # Analysis of protocols & performance
-│── .gitignore               # Ignored files
-```
+The application consists of a client-server architecture, where users can authenticate, send/recieve messages, and manage accounts.
 
----
+## Setup and Installation
 
-## **1. Setup & Installation**
+### Prerequisites
 
-### **1.1 Install Dependencies**
-Run the following command to install all required dependencies:
-```sh
-pip install -r requirements.txt
-```
+- Python 3.9+
+- Required dependencies (install via conda or pip)
 
-### **1.2 Start the Chat Server**
-```sh
-python src/server.py
-```
-The server will start based on the configuration settings in `config.json`. If the file does not exist, default values will be used.
+### Installation
 
-### **1.3 Run the GUI Client**
-```sh
-python src/gui.py
-```
-This will open the chat interface where users can log in, send messages, and adjust settings.
+1. Clone the repository:
+   ```bash
+   git https://github.com/sukikrishna/CS262DesignExercise1/
+   cd CS262DesignExercise1
+   ```
+2. Create a virtual environment and install dependencies:
+   ```bash
+   conda env create -f environment.yml
+   conda activate chat_app
+   ```
+3. Tests can be run with `pytest`:
+    ```bash
+    python -m pytest tests
+    ```
 
----
+## Running the Chat Application
 
-## **2. Configuring the Application**
-The application is **fully configurable via the GUI**:
-- Open **`gui.py`**
-- Select **protocol** (Custom Binary or JSON)
-- Set **server IP and port**
-- Save settings (Automatically updates `config.json`)
+The `run_chat.py` script provides a command-line interface to start the chat server or client using either protocol.
 
----
+#### Available Flags
 
-## **3. Running the Two Implementations**
-The application provides two protocol implementations for communication:
+- `--mode <client|server>`: Specifies whether to run as a client or server (Required).
+- `--ip <server-ip>`: IP address for connecting as a client (Required for clients, optional for servers).
+- `--port <port>`: Port number to use (Optional, defaults to the configuration file).
+- `--json`: Runs the application using the JSON wire protocol (Default if no protocol is specified).
+- `--custom`: Runs the application using the custom binary wire protocol.
 
-### **3.1 Custom Binary Protocol (Efficient & Minimal Overhead)**
-- Uses a structured binary format for message transmission.
-- Faster and more efficient in network usage.
-- Suitable for high-performance applications.
+#### Example Commands
 
-### **3.2 JSON Protocol (Readable & Easy to Debug)**
-- Uses JSON encoding for message transmission.
-- Easier to inspect and debug due to human-readable format.
-- Suitable for general applications where efficiency is less critical.
+- **Run JSON server**:
+  ```bash
+  python3 run_chat.py --mode server --json
+  ```
+- **Run Custom server**:
+  ```bash
+  python3 run_chat.py --mode server --custom
+  ```
+- **Run JSON client connecting to ********`127.0.0.1`******** on port 5000**:
+  ```bash
+  python3 run_chat.py --mode client --ip 127.0.0.1 --port 5000 --json
+  ```
+- **Run Custom client connecting to a server**:
+  ```bash
+  python3 run_chat.py --mode client --ip 127.0.0.1 --custom
+  ```
 
-### **3.3 How to Select a Protocol?**
-- **From GUI:** Select **Custom Binary Protocol** or **JSON Protocol** before logging in.
-- **From Code:** When starting the server/client, change the `use_json` flag:
-```python
-server = ChatServer(use_json=True)  # JSON Protocol
-server = ChatServer(use_json=False)  # Custom Binary Protocol
-```
+## Protocol Implementations
 
----
+### 1. JSON Wire Protocol
 
-## **4. Running Tests**
-To ensure everything is working as expected, run:
-```sh
-pytest tests/
-```
-This will execute unit tests covering:
-- **Server functionality** (`test_server.py`)
-- **Client functionality** (`test_client.py`)
-- **Protocol encoding & decoding** (`test_protocol.py`)
-- **Database operations** (`test_database.py`)
-- **GUI interactions** (`test_gui.py`)
+- Uses JSON for structuring messages, making it human-readable and easy to debug.
+- Suitable for applications requiring interoperability and flexibility.
+- Each message is encoded as a JSON object, containing a command and related data.
+- Example message format:
+  ```json
+  {
+    "cmd": "send",
+    "to": "user1",
+    "content": "Hello!"
+  }
+  ```
 
----
+### 2. Custom Wire Protocol
 
-## **5. Protocol Comparison**
-| Feature           | Custom Binary Protocol | JSON Protocol |
-|------------------|----------------------|--------------|
-| Efficiency      | ✅ Faster & minimal overhead | ❌ Slightly larger messages |
-| Readability     | ❌ Not human-readable  | ✅ Easy to inspect |
-| Debugging       | ❌ Harder to debug | ✅ Human-readable JSON |
-| Use Case        | ✅ High-performance apps | ✅ General applications |
+- Uses a compact binary encoding format, reducing message size and improving performance.
+- More efficient than JSON but harder to inspect manually.
+- Messages are encoded in a predefined binary format using struct packing/unpacking.
+- Example format:
+  ```
+  [Header: 4 bytes | Command: 2 bytes | Payload: variable size]
+  ```
+- Suitable for applications requiring optimized network performance.
 
----
+## Features
 
-## **6. FAQs**
-**Q: Can I change the protocol at runtime?**
-- Yes, you can select **JSON or Custom Binary Protocol** in the GUI before logging in.
+- User Authentication (Login, Registration, Logout)
+- Real-time Messaging (Send, Receive, Delete Messages)
+- Online/Offline User Tracking
+- Message History Retrieval
+- Secure Password Storage (SHA-256 Hashing)
 
-**Q: Where are settings stored?**
-- All configuration settings are saved in `config.json` automatically.
+## Contributing
 
-**Q: What if the server IP changes?**
-- Update it from the **GUI settings panel**.
+1. Fork the repository.
+2. Create a feature branch.
+3. Commit your changes.
+4. Open a pull request.
 
----
