@@ -15,7 +15,7 @@ sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "../")))
 from config import Config
 
 # Ensure logs directory exists in the project root
-LOG_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "../logs")
+LOG_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "../../logs")
 os.makedirs(LOG_DIR, exist_ok=True)
 
 # Set log file path
@@ -28,10 +28,30 @@ logging.basicConfig(
 )
 
 class ChatServer:
-    def __init__(self, host=None, port=None):
+    """A multi-threaded chat server that handles client connections, user authentication, 
+    and message exchange using JSON protocol.
 
+    Attributes:
+        host (str): Server host address.
+        port (int): Server port number.
+        users (dict): Stores user credentials and settings.
+        messages (defaultdict): Stores messages per user.
+        active_users (dict): Tracks active user connections.
+        message_id_counter (int): Counter for message IDs.
+        lock (threading.Lock): Lock for thread-safe operations.
+        server (socket.socket): Server socket.
+        running (bool): Indicates whether the server is running.
+    """
+
+    def __init__(self, host=None, port=None):
+        """Initializes the chat server with configurations.
+
+        Args:
+            host (str, optional): Server host. Defaults to `Config` value.
+            port (int, optional): Server port. Defaults to `Config` value.
+        """
         #Clear log file on server restart
-        open("server.log", "w").close() # Clears log file
+        open("server.log", "w").close()
 
         self.config = Config()
         self.host = host or self.config.get("host")
@@ -45,11 +65,25 @@ class ChatServer:
         self.running = False
 
     def hash_password(self, password):
-        """Hash password using SHA-256."""
+        """Hashes a password using SHA-256.
+
+        Args:
+            password (str): Password to be hashed.
+
+        Returns:
+            str: Hashed password.
+        """
         return hashlib.sha256(password.encode()).hexdigest()
 
     def validate_password(self, password):
-        """Ensure password meets minimum requirements."""
+        """Validates password strength.
+
+        Args:
+            password (str): Password to be validated.
+
+        Returns:
+            bool: True if password meets requirements, False otherwise.
+        """
         if len(password) < 8:
             return False
         if not re.search(r"\d", password):
@@ -59,10 +93,23 @@ class ChatServer:
         return True
 
     def get_unread_count(self, username):
-        """Get count of messages received while user was offline."""
+        """Returns the count of unread messages for a user.
+
+        Args:
+            username (str): Username to check messages for.
+
+        Returns:
+            int: Number of unread messages.
+        """
         return len([msg for msg in self.messages[username] if not msg["read"]])
 
     def handle_client(self, client_socket, address):
+        """Handles communication with a connected client.
+
+        Args:
+            client_socket (socket.socket): Client socket object.
+            address (tuple): Client's IP address and port.
+        """
         logging.info(f"New connection from {address}")
         current_user = None
 
@@ -363,7 +410,11 @@ class ChatServer:
         client_socket.close()
 
     def broadcast_user_list(self):
-        """Helper method to broadcast updated user list to all active clients"""
+        """Broadcasts the updated user list to all active clients.
+
+        Returns:
+            list: List of users with online/offline status.
+        """
         users_list = []
         for user in self.users:
             users_list.append({
@@ -383,20 +434,44 @@ class ChatServer:
         return users_list
 
     def get_messages(self, username):
-        """Get messages for a user, excluding unread ones."""
+        """Retrieves read messages for a user.
+
+        Args:
+            username (str): Username to retrieve messages for.
+
+        Returns:
+            list: List of sorted read messages.
+        """
         messages = self.messages[username]
         read_messages = [m for m in messages if m["read"]]
         return sorted(read_messages, key=lambda x: x["timestamp"], reverse=True)
 
     def get_unread_messages(self, username, count):
-        """Get unread messages for a user."""
+        """Retrieves unread messages for a user.
+
+        Args:
+            username (str): Username to retrieve messages for.
+            count (int): Number of messages to retrieve.
+
+        Returns:
+            list: List of sorted unread messages.
+        """
         messages = self.messages[username]
         unread_messages = [m for m in messages if not m["read"]]
         return sorted(unread_messages, key=lambda x: x["timestamp"], reverse=True)[:count]
-        # return sorted(unread_messages, key=lambda x: x["timestamp"])[:count]
-
 
     def find_free_port(self, start_port):
+        """Finds an available port starting from a given port.
+
+        Args:
+            start_port (int): Starting port number.
+
+        Returns:
+            int: First available port number.
+
+        Raises:
+            RuntimeError: If no free ports are available.
+        """
         port = start_port
         max_port = 65535
         
@@ -414,6 +489,15 @@ class ChatServer:
         raise RuntimeError("No free ports available")
 
     def start(self):
+        """Starts the chat server.
+
+        This method initializes the server, finds an available port, binds the server to the 
+        host and port, and starts listening for incoming client connections. It runs in 
+        a loop to accept and handle clients until stopped.
+
+        Raises:
+            RuntimeError: If no free ports are available for the server.
+        """
         # Find next available port if needed
         try:
             self.port = self.find_free_port(self.port)
@@ -451,6 +535,11 @@ class ChatServer:
 
 
     def stop(self):
+        """Stops the chat server.
+
+        This method gracefully shuts down the server by closing the socket 
+        and stopping the running server loop.
+        """
         self.running = False
         if self.server:
             self.server.close()

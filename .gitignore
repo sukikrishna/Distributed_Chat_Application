@@ -5,7 +5,8 @@ __pycache__/
 *.pyd
 
 # Ignore log files
-server.log
+custom_server.log
+json_server.log
 
 # Ignore configuration files
 chat_config.json

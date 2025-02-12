@@ -14,9 +14,15 @@ sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "../")))
 
 from config import Config
 
-# Configure logging
+# Ensure logs directory exists in the project root
+LOG_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "../../logs")
+os.makedirs(LOG_DIR, exist_ok=True)
+
+# Set log file path
+LOG_FILE = os.path.join(LOG_DIR, "custom_server.log")
+
 logging.basicConfig(
-    filename="custom_server.log",  # Change to None to print to console instead
+    filename=LOG_FILE,
     level=logging.INFO,
     format="%(asctime)s - %(levelname)s - %(message)s"
 )

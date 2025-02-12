@@ -11,7 +11,17 @@ CUSTOM_SERVER = os.path.join(SRC_DIR, "custom_protocol", "custom_server.py")
 JSON_CLIENT = os.path.join(SRC_DIR, "json_protocol", "json_client.py")
 JSON_SERVER = os.path.join(SRC_DIR, "json_protocol", "json_server.py")
 
+
 def main():
+    """Parses command-line arguments and launches the appropriate chat client or server.
+
+    The script allows users to select a wire protocol (`--json` or `--custom`), 
+    specify whether to run as a client or server (`--mode`), and optionally set 
+    an IP address (`--ip`) and port (`--port`).
+    
+    Raises:
+        SystemExit: If the required `--ip` argument is missing in client mode.
+    """
     parser = argparse.ArgumentParser(description="Run the appropriate chat application.")
     
     # Mutually exclusive group to enforce only one protocol selection
@@ -53,9 +63,8 @@ def main():
     elif args.mode == "server" and args.port:
         command.append(str(args.port))
 
-    # Run the selected script
-    print(f"Running: {' '.join(command)}")
     subprocess.run(command)
+
 
 if __name__ == "__main__":
     main()
