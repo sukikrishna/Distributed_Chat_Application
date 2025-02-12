@@ -1,20 +1,17 @@
 import socket
 import struct
 import threading
-import tkinter as tk
 import time
 import argparse
-from tkinter import ttk, messagebox
-from config import Config
+import sys
+import os
 
-import socket
-import struct
-import threading
 import tkinter as tk
-import time
-import argparse
 from tkinter import ttk, messagebox
-from config import Config
+
+sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "../")))
+
+from config import Config  # Now Python can find config.py
 
 class CustomWireProtocol:
     """
@@ -154,7 +151,7 @@ class MessageFrame(ttk.Frame):
         content.pack(fill='x', pady=(5, 0))
 
 class ChatClient:
-    def __init__(self, host):
+    def __init__(self, host, port):
         self.root = tk.Tk()
         self.root.title("Chat Application (Custom Wire Protocol)")
         self.root.geometry("1000x800")
@@ -501,15 +498,11 @@ class ChatClient:
         except ValueError:
             count = self.config.get("message_fetch_limit")
         
-        print(f"message pre: {CustomWireProtocol.CMD_GET_MESSAGES, [count]}")
-
         # Encode get messages request
         message = self.protocol.encode_message(
             CustomWireProtocol.CMD_GET_MESSAGES, 
             [count]
         )
-
-        print(f"message: {message}")
         
         try:
             self.socket.send(message)
@@ -523,8 +516,6 @@ class ChatClient:
             count = int(self.msg_count.get())
         except ValueError:
             count = self.config.get("message_fetch_limit")
-
-        print(f"message pre unread: {CustomWireProtocol.CMD_GET_UNDELIVERED, [count]}")
         
         # Encode get unread messages request
         message = self.protocol.encode_message(
@@ -532,8 +523,6 @@ class ChatClient:
             [count]
         )
         
-        print(f"message unread: {message}")
-
         try:
             self.socket.send(message)
         except Exception as e:
@@ -572,7 +561,6 @@ class ChatClient:
                     
             except Exception as e:
                 if self.running:
-                    print(f"Error receiving message: {e}")
                     self.root.after(0, self.on_connection_lost)
                 break
 
@@ -590,7 +578,7 @@ class ChatClient:
                     unread_count = struct.unpack('!H', remaining_payload)[0] if remaining_payload else 0
                     self.root.after(0, lambda: self.status_var.set(f"Logged in as: {self.username}"))
                     self.root.after(0, lambda: self.notebook.select(1))
-                    messagebox.showinfo("Login", f"Successfully logged in. {unread_count} unread messages.")
+                    messagebox.showinfo("Login", f"You have {unread_count} unread messages")
                 
                 elif message == "new_message":
                     # Handle new message notification
@@ -726,24 +714,35 @@ class ChatClient:
             try:
                 if self.username and self.running:
                     self.search_accounts()
-            except Exception as e:
-                print(f"Error in periodic user check: {e}")
+            except:
+                pass
             finally:
                 # Always schedule the next check, even if there's an error
-                self.root.after(5000, check_users_periodically)
+                self.root.after(1000, check_users_periodically)
 
-        self.root.after(5000, check_users_periodically)
+        self.root.after(1000, check_users_periodically)
         self.root.protocol("WM_DELETE_WINDOW", self.on_closing)
         self.search_accounts()
         self.root.mainloop()
 
 def main():
-    parser = argparse.ArgumentParser(description="Chat Client (Custom Wire Protocol)")
-    parser.add_argument("host", help="Server IP or hostname")
+    parser = argparse.ArgumentParser(description="Chat Client")
+    parser.add_argument("host", type=str, help="Server IP or hostname")
+    parser.add_argument("--port", type=int, help="Server port (optional)")
+
     args = parser.parse_args()
 
-    client = ChatClient(args.host)
+    config = Config()
+
+    # Determine host: use CLI argument
+    host = args.host
+
+    # Determine port: use CLI argument if given, otherwise use config
+    port = args.port if args.port is not None else config.get("port")
+
+    client = ChatClient(host, port)
     client.run()
+
 
 if __name__ == "__main__":
     main()

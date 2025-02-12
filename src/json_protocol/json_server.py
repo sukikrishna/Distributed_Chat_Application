@@ -2,12 +2,15 @@ import socket
 import json
 import threading
 import hashlib
+import sys
 import re
 import os
 import fnmatch
 import time
 import logging
 from collections import defaultdict
+
+sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "../")))
 
 from config import Config
 
@@ -16,7 +19,7 @@ LOG_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "../logs")
 os.makedirs(LOG_DIR, exist_ok=True)
 
 # Set log file path
-LOG_FILE = os.path.join(LOG_DIR, "server.log")
+LOG_FILE = os.path.join(LOG_DIR, "json_server.log")
 
 logging.basicConfig(
     filename=LOG_FILE,

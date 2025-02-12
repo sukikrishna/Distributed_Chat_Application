@@ -2,16 +2,21 @@ import socket
 import struct
 import threading
 import hashlib
+import sys
 import re
+import os
 import fnmatch
-from collections import defaultdict
 import time
 import logging
+from collections import defaultdict
+
+sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "../")))
+
 from config import Config
 
 # Configure logging
 logging.basicConfig(
-    filename="server.log",  # Change to None to print to console instead
+    filename="custom_server.log",  # Change to None to print to console instead
     level=logging.INFO,
     format="%(asctime)s - %(levelname)s - %(message)s"
 )
@@ -41,9 +46,6 @@ class CustomWireProtocol:
         Encode a message for transmission
         payload_parts should be a list of various types to be encoded
         """
-
-        print(f"payload parts: {payload_parts}")
-
         # Encode each payload part
         encoded_payload = []
         for part in payload_parts:
@@ -84,51 +86,20 @@ class CustomWireProtocol:
         
         # Combine payload parts
         payload = b''.join(encoded_payload)
-
-        print(f"payload: {payload}")
         
         # Pack total length (4 bytes), command (2 bytes), then payload
         header = struct.pack('!IH', len(payload) + 6, cmd)
-
-        print(f"header: {header}")
-
         return header + payload
 
     @staticmethod
-    def decode_message_data(payload):
+    def decode_message(data):
         """
-        Decode a complete message entry from payload
-        Returns (message_data, remaining_payload)
+        Decode an incoming message
+        Returns (total_length, command, payload)
         """
-        if len(payload) < 4:  # Need at least message ID
-            return None, payload
-            
-        # Decode message ID
-        msg_id = struct.unpack('!I', payload[:4])[0]
-        payload = payload[4:]
-        
-        # Decode sender
-        if len(payload) < 2:  # Need string length
-            return None, payload
-        sender, payload = CustomWireProtocol.decode_string(payload)
-        
-        # Decode content
-        if len(payload) < 2:  # Need string length
-            return None, payload
-        content, payload = CustomWireProtocol.decode_string(payload)
-        
-        # Decode timestamp
-        if len(payload) < 4:  # Need timestamp
-            return None, payload
-        timestamp = struct.unpack('!I', payload[:4])[0]
-        payload = payload[4:]
-        
-        return {
-            "id": msg_id,
-            "from": sender,
-            "content": content,
-            "timestamp": timestamp
-        }, payload
+        total_length, cmd = struct.unpack('!IH', data[:6])
+        payload = data[6:total_length]
+        return total_length, cmd, payload
 
     @staticmethod
     def decode_string(data):
@@ -204,24 +175,9 @@ class ChatServer:
                 })
         return matches
 
-
-    def get_messages(self, username):
-        """Get messages for a user, excluding unread ones."""
-        messages = self.messages[username]
-        read_messages = [m for m in messages if m["read"]]
-        return sorted(read_messages, key=lambda x: x["timestamp"], reverse=True)
-
-    def get_unread_messages(self, username, count):
-        """Get unread messages for a user."""
-        messages = self.messages[username]
-        unread_messages = [m for m in messages if not m["read"]]
-        return sorted(unread_messages, key=lambda x: x["timestamp"])[:count]
-
-
     def get_unread_count(self, username):
         """Get count of messages received while user was offline."""
         return len([msg for msg in self.messages[username] if not msg["read"]])
-
 
     def handle_client(self, client_socket, address):
         logging.info(f"New connection from {address}")
@@ -440,28 +396,26 @@ class ChatServer:
                                     False, 
                                     "Not logged in"
                                 )
-
-                                logging.warning(f"Unauthorized get_messages request from {address}")
                                 continue
 
                             # Decode desired message count
-                            count = struct.unpack('!H', payload)[0]
+                            count = struct.unpack('!H', payload[:2])[0] if payload else 50
                             
-                            # Get messages (consider implementing method like in original)
-                            # messages = self.messages[current_user]#[-count:]
-                            messages = self.get_messages(current_user)
+                            # Get messages sorted by timestamp
+                            messages = sorted(
+                                [msg for msg in self.messages[current_user] if msg["read"]],
+                                key=lambda x: x['timestamp'],
+                                reverse=True
+                            )
                             
                             # Construct response payload
                             response_parts = []
-                            for msg in messages:
-                                response_parts.extend([
-                                    msg['id'],
-                                    msg['from'],
-                                    msg['content'],
-                                    msg['timestamp']
-                                ])
                             
-                            # Send response
+                            for msg in messages:
+                                packed_id = struct.pack('!I', msg['id'])
+                                packed_timestamp = struct.pack('!I', msg['timestamp'])
+                                response_parts.extend([packed_id, msg['from'], msg['content'], packed_timestamp])
+                                                       
                             self.send_success_response(
                                 client_socket, 
                                 cmd, 
@@ -469,7 +423,6 @@ class ChatServer:
                                 None,
                                 response_parts
                             )
-                            logging.info(f"User '{current_user}' retrieved {len(messages)} read messages")
 
                         elif cmd == CustomWireProtocol.CMD_GET_UNDELIVERED:
                             if not current_user:
@@ -479,19 +432,17 @@ class ChatServer:
                                     False, 
                                     "Not logged in"
                                 )
-                                logging.warning(f"Unauthorized get_undelivered request from {address}")
                                 continue
 
                             # Decode desired message count
-                            count = struct.unpack('!H', payload)[0]
+                            count = struct.unpack('!H', payload[:2])[0] if payload else 50
                             
                             # Get unread messages
-                            # unread_messages = [
-                            #     msg for msg in self.messages[current_user] 
-                            #     if not msg["read"]
-                            # ][-count:]
-
-                            unread_messages = self.get_unread_messages(current_user, count)
+                            unread_messages = sorted(
+                                [msg for msg in self.messages[current_user] if not msg["read"]],
+                                key=lambda x: x['timestamp'],
+                                reverse=True
+                            )[:count]
                             
                             # Mark messages as read
                             for msg in unread_messages:
@@ -500,12 +451,9 @@ class ChatServer:
                             # Construct response payload
                             response_parts = []
                             for msg in unread_messages:
-                                response_parts.extend([
-                                    msg['id'],
-                                    msg['from'],
-                                    msg['content'],
-                                    msg['timestamp']
-                                ])
+                                packed_id = struct.pack('!I', msg['id'])
+                                packed_timestamp = struct.pack('!I', msg['timestamp'])
+                                response_parts.extend([packed_id, msg['from'], msg['content'], packed_timestamp])
                             
                             # Send response
                             self.send_success_response(
@@ -515,7 +463,6 @@ class ChatServer:
                                 None,
                                 response_parts
                             )
-                            logging.info(f"User '{current_user}' retrieved {len(unread_messages)} undelivered messages")
 
                         elif cmd == CustomWireProtocol.CMD_DELETE_MESSAGES:
                             if not current_user:
@@ -525,7 +472,6 @@ class ChatServer:
                                     False, 
                                     "Not logged in"
                                 )
-                                logging.warning(f"Unauthorized delete_messages request from {address}")
                                 continue
 
                             # Decode message IDs to delete
@@ -545,7 +491,6 @@ class ChatServer:
                                 True, 
                                 "Messages deleted"
                             )
-                            logging.info(f"User '{current_user}' deleted {len(msg_ids)} messages")
 
                         elif cmd == CustomWireProtocol.CMD_DELETE_ACCOUNT:
                             if not current_user:
@@ -629,7 +574,7 @@ class ChatServer:
             config = Config()
             config.update("port", self.port)
         except RuntimeError as e:
-            print(f"Server error: {e}")
+            logging.info(f"Server error: {e}")
             return
 
         self.server = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
@@ -652,7 +597,7 @@ class ChatServer:
                 except socket.timeout:
                     continue
                 except Exception as e:
-                    print(f"Error accepting connection: {e}")
+                    logging.info(f"Error accepting connection: {e}")
                     continue
         finally:
             self.server.close()

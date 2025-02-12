@@ -3,9 +3,13 @@ import json
 import threading
 import time
 import argparse
+import sys
+import os
 
 import tkinter as tk
 from tkinter import ttk, messagebox
+
+sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "../")))
 
 from config import Config
 
