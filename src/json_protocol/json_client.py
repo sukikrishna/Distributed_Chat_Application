@@ -1,7 +1,6 @@
 import socket
 import json
 import threading
-import time
 import argparse
 import sys
 import os
@@ -12,39 +11,17 @@ from tkinter import ttk, messagebox
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "../")))
 
 from config import Config
-
-class MessageFrame(ttk.Frame):
-    def __init__(self, parent, message_data, on_select=None):
-        super().__init__(parent)
-        
-        self.configure(relief='raised', borderwidth=1, padding=5)
-        self.message_id = message_data["id"]
-        
-        header_frame = ttk.Frame(self)
-        header_frame.pack(fill='x', expand=True)
-        
-        self.select_var = tk.BooleanVar()
-        select_cb = ttk.Checkbutton(header_frame, variable=self.select_var)
-        select_cb.pack(side='left', padx=(0, 5))
-        
-        time_str = time.strftime('%Y-%m-%d %H:%M:%S', 
-                               time.localtime(message_data["timestamp"]))
-        sender_label = ttk.Label(
-            header_frame, 
-            text=f"From: {message_data['from']} at {time_str}",
-            style='Bold.TLabel'
-        )
-        sender_label.pack(side='left')
-    
-        content = ttk.Label(
-            self,
-            text=message_data["content"],
-            wraplength=400
-        )
-        content.pack(fill='x', pady=(5, 0))
+from utils import MessageFrame
 
 class ChatClient:
+    """A GUI-based chat client for sending and receiving messages."""
     def __init__(self, host, port):
+        """Initializes the chat client and connects to the server.
+
+        Args:
+            host (str): Server IP address.
+            port (int): Server port.
+        """
         self.root = tk.Tk()
         self.root.title("Chat Application")
         self.root.geometry("1000x800")
@@ -66,6 +43,7 @@ class ChatClient:
         threading.Thread(target=self.receive_messages, daemon=True).start()
         
     def setup_gui(self):
+        """Sets up the graphical user interface for the chat client."""
         style = ttk.Style()
         style.configure('Bold.TLabel', font=('TkDefaultFont', 9, 'bold'))
         
@@ -89,6 +67,7 @@ class ChatClient:
         status.pack(side='bottom', fill='x', padx=5, pady=2)
         
     def setup_auth_frame(self):
+        """Configures the login and registration UI components."""
         frame = ttk.LabelFrame(self.auth_frame, text="Authentication", padding=10)
         frame.pack(expand=True, fill='both', padx=10, pady=10)
         
@@ -107,6 +86,7 @@ class ChatClient:
                   command=self.create_account).pack(side='left', padx=5)
         
     def setup_chat_frame(self):
+        """Configures the chat window layout and message display."""
         left_frame = ttk.Frame(self.chat_frame)
         left_frame.pack(side='left', fill='both', expand=True)
         
@@ -162,6 +142,7 @@ class ChatClient:
             command=self.logout).pack(fill='x', pady=(25, 5))
 
     def setup_accounts_frame(self):
+        """Configures the user search and account list UI."""
         controls_frame = ttk.Frame(self.accounts_frame)
         controls_frame.pack(fill='x', padx=5, pady=5)
         
@@ -239,6 +220,7 @@ class ChatClient:
         ttk.Label(status_frame, textvariable=self.online_count_var).pack(side='left')
 
     def create_account(self):
+        """Sends a request to the server to create a new account."""
         username = self.username_entry.get()
         password = self.password_entry.get()
         
@@ -253,6 +235,7 @@ class ChatClient:
         })
 
     def login(self):
+        """Sends a login request to the server."""
         username = self.username_entry.get()
         password = self.password_entry.get()
         
@@ -267,6 +250,7 @@ class ChatClient:
         })
 
     def send_message(self):
+        """Sends a message to the selected recipient."""
         if not self.username:
             messagebox.showwarning("Warning", "Please login first")
             return
@@ -287,6 +271,11 @@ class ChatClient:
         self.message_text.delete("1.0", tk.END)
 
     def delete_message(self, msg_id):
+        """Deletes a specific message.
+
+        Args:
+            msg_id (int): ID of the message to delete.
+        """
         if messagebox.askyesno("Confirm", "Delete this message?"):
             self.send_command({
                 "cmd": "delete_messages",
@@ -299,6 +288,7 @@ class ChatClient:
                     break
 
     def delete_selected_messages(self):
+        """Deletes all selected messages in the chat window."""
         selected_ids = []
         for widget in self.messages_frame.winfo_children():
             if isinstance(widget, MessageFrame) and widget.select_var.get():
@@ -316,7 +306,7 @@ class ChatClient:
                         widget.destroy()
 
     def refresh_messages(self):
-        """Get all messages for history view"""
+        """Fetches and displays the message history."""
         try:
             count = int(self.msg_count.get())
         except ValueError:
@@ -328,7 +318,7 @@ class ChatClient:
         })
 
     def refresh_unread_messages(self):
-        """Get only undelivered messages"""
+        """Fetches and displays only unread messages."""
         try:
             count = int(self.msg_count.get())
         except ValueError:
@@ -340,6 +330,11 @@ class ChatClient:
         })
 
     def on_user_select(self, event):
+        """Handles user selection from the accounts list.
+
+        Args:
+            event (tk.Event): The triggered event.
+        """
         selection = self.accounts_list.selection()
         if selection:
             item = self.accounts_list.item(selection[0])
@@ -348,6 +343,7 @@ class ChatClient:
             self.notebook.select(1)  # Switch to chat tab
 
     def search_accounts(self):
+        """Sends a request to the server to search for users."""
         pattern = self.search_var.get()
         if pattern and not pattern.endswith("*"):
             pattern = pattern + "*"
@@ -357,6 +353,7 @@ class ChatClient:
         })
 
     def delete_account(self):
+        """Sends a request to the server to delete the user's account."""
         if not self.username:
             messagebox.showwarning("Warning", "Please login first")
             return
@@ -374,15 +371,21 @@ class ChatClient:
             })
 
     def logout(self):
+        """Logs out the current user from the server."""
         if self.username:
             self.send_command({"cmd": "logout"})
 
     def clear_messages(self):
+        """Clears all messages displayed in the chat window."""
         for widget in self.messages_frame.winfo_children():
             widget.destroy()
 
     def send_command(self, command):
-        """Ensure every command includes the version field before sending."""
+        """Sends a JSON command to the server.
+
+        Args:
+            command (dict): The command dictionary to send.
+        """
         command["version"] = "1.0"  # Add version to every message
         try:
             self.socket.send(json.dumps(command).encode())
@@ -391,6 +394,7 @@ class ChatClient:
             self.on_connection_lost()
 
     def receive_messages(self):
+        """Continuously receives and processes messages from the server."""
         buffer = ""
         while self.running:
             try:
@@ -420,6 +424,11 @@ class ChatClient:
                 break
 
     def handle_message(self, message):
+        """Handles incoming messages from the server.
+
+        Args:
+            message (dict): The received message.
+        """
         if message.get("success"):
             if "username" in message:
                 if "unread" in message:
@@ -470,13 +479,21 @@ class ChatClient:
             messagebox.showerror("Error", message.get("message", "Unknown error occurred"))
 
     def on_connection_lost(self):
+        """Handles server disconnection and shuts down the client."""
         if self.running:
             self.running = False
             messagebox.showerror("Error", "Connection to server lost")
             self.root.destroy()
 
     def run(self):
+        """Runs the chat client application."""
         def check_users_periodically():
+            """Periodically updates the list of online users.
+
+            This function triggers a search for active users every second and 
+            schedules itself to run again using `root.after()`, ensuring 
+            real-time updates of user statuses.
+            """
             if self.username and self.running:
                 self.search_accounts()
                 self.root.after(1000, check_users_periodically)
@@ -487,6 +504,7 @@ class ChatClient:
         self.root.mainloop()
 
     def on_closing(self):
+        """Handles cleanup when the chat window is closed."""
         self.running = False
         if self.username:
             try:
@@ -500,6 +518,7 @@ class ChatClient:
         self.root.destroy()
 
 def main():
+    """Parses command-line arguments and starts the chat client."""
     parser = argparse.ArgumentParser(description="Chat Client")
     parser.add_argument("host", type=str, help="Server IP or hostname")
     parser.add_argument("--port", type=int, help="Server port (optional)")

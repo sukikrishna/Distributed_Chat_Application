@@ -1,7 +1,6 @@
 import socket
 import struct
 import threading
-import time
 import argparse
 import sys
 import os
@@ -9,149 +8,33 @@ import os
 import tkinter as tk
 from tkinter import ttk, messagebox
 
+from custom_protocol import CustomWireProtocol
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "../")))
 
-from config import Config  # Now Python can find config.py
-
-class CustomWireProtocol:
-    """
-    Custom wire protocol for message encoding and decoding.
-    Message format:
-    - 4 bytes: Total message length
-    - 2 bytes: Command type (unsigned short)
-    - Remaining bytes: Payload
-    """
-    # Command type constants
-    CMD_CREATE = 1
-    CMD_LOGIN = 2
-    CMD_LIST = 3
-    CMD_SEND = 4
-    CMD_GET_MESSAGES = 5
-    CMD_GET_UNDELIVERED = 6
-    CMD_DELETE_MESSAGES = 7
-    CMD_DELETE_ACCOUNT = 8
-    CMD_LOGOUT = 9
-
-    @staticmethod
-    def encode_message(cmd, payload_parts):
-        """
-        Encode a message for transmission
-        payload_parts should be a list of various types to be encoded
-        """
-        # Encode each payload part
-        encoded_payload = []
-        for part in payload_parts:
-            if part is None:
-                continue
-            if isinstance(part, str):
-                # Encode string with length prefix (2 bytes for length)
-                encoded_str = part.encode('utf-8')
-                encoded_payload.append(struct.pack('!H', len(encoded_str)))
-                encoded_payload.append(encoded_str)
-            elif isinstance(part, bytes):
-                # If it's already bytes, add directly
-                encoded_payload.append(part)
-            elif isinstance(part, list):
-                # Handle lists of IDs or other types
-                if not part:
-                    encoded_payload.append(struct.pack('!H', 0))
-                else:
-                    encoded_payload.append(struct.pack('!H', len(part)))
-                    for item in part:
-                        if isinstance(item, int):
-                            # 4 bytes for integer IDs
-                            encoded_payload.append(struct.pack('!I', item))
-            elif isinstance(part, bool):
-                # Boolean as 1 byte
-                encoded_payload.append(struct.pack('!?', part))
-            elif isinstance(part, int):
-                # Handle different integer sizes
-                if part > 65535:
-                    # 4-byte integer
-                    encoded_payload.append(struct.pack('!I', part))
-                else:
-                    # 2-byte integer for smaller numbers
-                    encoded_payload.append(struct.pack('!H', part))
-            elif isinstance(part, float):
-                # 8-byte float for timestamps
-                encoded_payload.append(struct.pack('!d', part))
-        
-        # Combine payload parts
-        payload = b''.join(encoded_payload)
-        
-        # Pack total length (4 bytes), command (2 bytes), then payload
-        header = struct.pack('!IH', len(payload) + 6, cmd)
-        return header + payload
-
-    @staticmethod
-    def decode_message(data):
-        """
-        Decode an incoming message
-        Returns (total_length, command, payload)
-        """
-        total_length, cmd = struct.unpack('!IH', data[:6])
-        payload = data[6:total_length]
-        return total_length, cmd, payload
-
-    @staticmethod
-    def decode_string(data):
-        """Decode a length-prefixed string"""
-        if len(data) < 2:
-            return "", data
-        length = struct.unpack('!H', data[:2])[0]
-        if len(data) < 2 + length:
-            return "", data
-        return data[2:2+length].decode('utf-8'), data[2+length:]
-
-    @staticmethod
-    def decode_success_response(payload):
-        """
-        Decode a standard success response
-        Returns (success, message, remaining_payload)
-        """
-        if len(payload) < 1:
-            return False, "Invalid response", b''
-        
-        success = struct.unpack('!?', payload[:1])[0]
-        payload = payload[1:]
-        
-        # Decode message string
-        message, payload = CustomWireProtocol.decode_string(payload)
-        
-        return success, message, payload
-
-class MessageFrame(ttk.Frame):
-    def __init__(self, parent, message_data, on_select=None):
-        super().__init__(parent)
-        
-        self.configure(relief='raised', borderwidth=1, padding=5)
-        self.message_id = message_data["id"]
-        
-        header_frame = ttk.Frame(self)
-        header_frame.pack(fill='x', expand=True)
-        
-        self.select_var = tk.BooleanVar()
-        select_cb = ttk.Checkbutton(header_frame, variable=self.select_var)
-        select_cb.pack(side='left', padx=(0, 5))
-        
-        time_str = time.strftime('%Y-%m-%d %H:%M:%S', 
-                               time.localtime(message_data["timestamp"]))
-        sender_label = ttk.Label(
-            header_frame, 
-            text=f"From: {message_data['from']} at {time_str}",
-            style='Bold.TLabel'
-        )
-        sender_label.pack(side='left')
-    
-        content = ttk.Label(
-            self,
-            text=message_data["content"],
-            wraplength=400
-        )
-        content.pack(fill='x', pady=(5, 0))
+from config import Config
+from utils import MessageFrame
 
 class ChatClient:
+    """A GUI-based chat client using a custom wire protocol.
+
+    This client connects to a chat server, handles authentication, 
+    message exchange, and account management using `CustomWireProtocol`.
+
+    Attributes:
+        host (str): The server hostname or IP address.
+        port (int): The port number to connect to.
+        socket (socket.socket): The socket connection to the server.
+        protocol (CustomWireProtocol): Instance of `CustomWireProtocol` for encoding/decoding messages.
+        username (str): The username of the logged-in user.
+        running (bool): Indicates whether the client is running.
+    """
     def __init__(self, host, port):
+        """Initializes the chat client and connects to the server.
+
+        Args:
+            host (str): The server hostname or IP address.
+            port (int): The port number to connect to.
+        """
         self.root = tk.Tk()
         self.root.title("Chat Application (Custom Wire Protocol)")
         self.root.geometry("1000x800")
@@ -175,6 +58,7 @@ class ChatClient:
         threading.Thread(target=self.receive_messages, daemon=True).start()
         
     def setup_gui(self):
+        """Sets up the graphical user interface for the chat client."""
         style = ttk.Style()
         style.configure('Bold.TLabel', font=('TkDefaultFont', 9, 'bold'))
         
@@ -198,6 +82,7 @@ class ChatClient:
         status.pack(side='bottom', fill='x', padx=5, pady=2)
 
     def setup_auth_frame(self):
+        """Configures the login and registration UI components."""
         frame = ttk.LabelFrame(self.auth_frame, text="Authentication", padding=10)
         frame.pack(expand=True, fill='both', padx=10, pady=10)
         
@@ -216,6 +101,7 @@ class ChatClient:
                   command=self.create_account).pack(side='left', padx=5)
 
     def setup_chat_frame(self):
+        """Configures the chat window layout and message display."""
         left_frame = ttk.Frame(self.chat_frame)
         left_frame.pack(side='left', fill='both', expand=True)
         
@@ -271,6 +157,8 @@ class ChatClient:
             command=self.logout).pack(fill='x', pady=(25, 5))
 
     def setup_accounts_frame(self):
+        """Configures the user search and account list UI."""
+
         controls_frame = ttk.Frame(self.accounts_frame)
         controls_frame.pack(fill='x', padx=5, pady=5)
         
@@ -348,6 +236,8 @@ class ChatClient:
         ttk.Label(status_frame, textvariable=self.online_count_var).pack(side='left')
 
     def create_account(self):
+        """Sends a request to the server to create a new account."""
+
         username = self.username_entry.get()
         password = self.password_entry.get()
         
@@ -368,6 +258,7 @@ class ChatClient:
             self.on_connection_lost()
 
     def login(self):
+        """Sends a login request to the server."""
         username = self.username_entry.get()
         password = self.password_entry.get()
         
@@ -388,6 +279,7 @@ class ChatClient:
             self.on_connection_lost()
 
     def send_message(self):
+        """Sends a message to the selected recipient."""
         if not self.username:
             messagebox.showwarning("Warning", "Please login first")
             return
@@ -413,6 +305,7 @@ class ChatClient:
             self.on_connection_lost()
 
     def search_accounts(self):
+        """Sends a request to the server to search for users."""
         pattern = self.search_var.get()
         if pattern and not pattern.endswith("*"):
             pattern = pattern + "*"
@@ -430,6 +323,7 @@ class ChatClient:
             self.on_connection_lost()
 
     def delete_selected_messages(self):
+        """Deletes all selected messages in the chat window."""
         selected_ids = []
         for widget in self.messages_frame.winfo_children():
             if isinstance(widget, MessageFrame) and widget.select_var.get():
@@ -454,6 +348,7 @@ class ChatClient:
                     self.on_connection_lost()
 
     def delete_account(self):
+        """Sends a request to the server to delete the user's account."""
         if not self.username:
             messagebox.showwarning("Warning", "Please login first")
             return
@@ -478,6 +373,7 @@ class ChatClient:
                 self.on_connection_lost()
 
     def logout(self):
+        """Logs out the current user from the server."""
         if self.username:
             # Encode logout message
             message = self.protocol.encode_message(
@@ -492,7 +388,7 @@ class ChatClient:
                 self.on_connection_lost()
 
     def refresh_messages(self):
-        """Get all messages for history view"""
+        """Fetches and displays the message history."""
         try:
             count = int(self.msg_count.get())
         except ValueError:
@@ -511,7 +407,7 @@ class ChatClient:
             self.on_connection_lost()
 
     def refresh_unread_messages(self):
-        """Get only undelivered messages"""
+        """Fetches and displays only unread messages."""
         try:
             count = int(self.msg_count.get())
         except ValueError:
@@ -530,6 +426,7 @@ class ChatClient:
             self.on_connection_lost()
 
     def receive_messages(self):
+        """Continuously receives and processes messages from the server."""
         buffer = b''
         while self.running:
             try:
@@ -565,6 +462,12 @@ class ChatClient:
                 break
 
     def handle_message(self, cmd, payload):
+        """Handles incoming messages from the server.
+
+        Args:
+            cmd (int): The command type identifier.
+            payload (bytes): The binary payload data.
+        """
         try:
             # Decode success response
             success, message, remaining_payload = self.protocol.decode_success_response(payload)
@@ -674,10 +577,16 @@ class ChatClient:
             self.status_var.set(f"Error: {str(e)}")
 
     def clear_messages(self):
+        """Clears all messages displayed in the chat window."""
         for widget in self.messages_frame.winfo_children():
             widget.destroy()
 
     def on_user_select(self, event):
+        """Handles user selection from the accounts list.
+
+        Args:
+            event (tk.Event): The triggered event.
+        """
         selection = self.accounts_list.selection()
         if selection:
             item = self.accounts_list.item(selection[0])
@@ -686,6 +595,7 @@ class ChatClient:
             self.notebook.select(1)  # Switch to chat tab
 
     def on_closing(self):
+        """Handles cleanup when the chat window is closed."""s
         self.running = False
         if self.username:
             try:
@@ -704,13 +614,21 @@ class ChatClient:
         self.root.destroy()
 
     def on_connection_lost(self):
+        """Handles server disconnection and shuts down the client."""
         if self.running:
             self.running = False
             messagebox.showerror("Error", "Connection to server lost")
             self.root.destroy()
 
     def run(self):
+        """Runs the chat client application."""
         def check_users_periodically():
+            """Periodically updates the list of online users.
+
+            This function triggers a search for active users every second and 
+            schedules itself to run again using `root.after()`, ensuring 
+            real-time updates of user statuses.
+            """
             try:
                 if self.username and self.running:
                     self.search_accounts()
@@ -726,6 +644,7 @@ class ChatClient:
         self.root.mainloop()
 
 def main():
+    """Parses command-line arguments and starts the chat client."""
     parser = argparse.ArgumentParser(description="Chat Client")
     parser.add_argument("host", type=str, help="Server IP or hostname")
     parser.add_argument("--port", type=int, help="Server port (optional)")

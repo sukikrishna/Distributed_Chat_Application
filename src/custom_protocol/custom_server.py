@@ -10,8 +10,9 @@ import time
 import logging
 from collections import defaultdict
 
-sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "../")))
+from custom_protocol import CustomWireProtocol
 
+sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "../")))
 from config import Config
 
 # Ensure logs directory exists in the project root
@@ -27,98 +28,31 @@ logging.basicConfig(
     format="%(asctime)s - %(levelname)s - %(message)s"
 )
 
-class CustomWireProtocol:
-    """
-    Custom wire protocol for message encoding and decoding.
-    Message format:
-    - 4 bytes: Total message length
-    - 2 bytes: Command type (unsigned short)
-    - Remaining bytes: Payload
-    """
-    # Command type constants
-    CMD_CREATE = 1
-    CMD_LOGIN = 2
-    CMD_LIST = 3
-    CMD_SEND = 4
-    CMD_GET_MESSAGES = 5
-    CMD_GET_UNDELIVERED = 6
-    CMD_DELETE_MESSAGES = 7
-    CMD_DELETE_ACCOUNT = 8
-    CMD_LOGOUT = 9
-
-    @staticmethod
-    def encode_message(cmd, payload_parts):
-        """
-        Encode a message for transmission
-        payload_parts should be a list of various types to be encoded
-        """
-        # Encode each payload part
-        encoded_payload = []
-        for part in payload_parts:
-            if part is None:
-                continue
-            if isinstance(part, str):
-                # Encode string with length prefix (2 bytes for length)
-                encoded_str = part.encode('utf-8')
-                encoded_payload.append(struct.pack('!H', len(encoded_str)))
-                encoded_payload.append(encoded_str)
-            elif isinstance(part, bytes):
-                # If it's already bytes, add directly
-                encoded_payload.append(part)
-            elif isinstance(part, list):
-                # Handle lists of IDs or other types
-                if not part:
-                    encoded_payload.append(struct.pack('!H', 0))
-                else:
-                    encoded_payload.append(struct.pack('!H', len(part)))
-                    for item in part:
-                        if isinstance(item, int):
-                            # 4 bytes for integer IDs
-                            encoded_payload.append(struct.pack('!I', item))
-            elif isinstance(part, bool):
-                # Boolean as 1 byte
-                encoded_payload.append(struct.pack('!?', part))
-            elif isinstance(part, int):
-                # Handle different integer sizes
-                if part > 65535:
-                    # 4-byte integer
-                    encoded_payload.append(struct.pack('!I', part))
-                else:
-                    # 2-byte integer for smaller numbers
-                    encoded_payload.append(struct.pack('!H', part))
-            elif isinstance(part, float):
-                # 8-byte float for timestamps
-                encoded_payload.append(struct.pack('!d', part))
-        
-        # Combine payload parts
-        payload = b''.join(encoded_payload)
-        
-        # Pack total length (4 bytes), command (2 bytes), then payload
-        header = struct.pack('!IH', len(payload) + 6, cmd)
-        return header + payload
-
-    @staticmethod
-    def decode_message(data):
-        """
-        Decode an incoming message
-        Returns (total_length, command, payload)
-        """
-        total_length, cmd = struct.unpack('!IH', data[:6])
-        payload = data[6:total_length]
-        return total_length, cmd, payload
-
-    @staticmethod
-    def decode_string(data):
-        """Decode a length-prefixed string"""
-        if len(data) < 2:
-            return "", data
-        length = struct.unpack('!H', data[:2])[0]
-        if len(data) < 2 + length:
-            return "", data
-        return data[2:2+length].decode('utf-8'), data[2+length:]
-
 class ChatServer:
+    """A multi-threaded chat server using a custom wire protocol.
+
+    This server handles user authentication, message exchange, and 
+    account management using `CustomWireProtocol`.
+
+    Attributes:
+        host (str): The server hostname or IP address.
+        port (int): The port number on which the server runs.
+        users (dict): Stores user credentials and settings.
+        messages (defaultdict): Stores messages for each user.
+        active_users (dict): Tracks online users and their connections.
+        message_id_counter (int): Counter for assigning message IDs.
+        lock (threading.Lock): Ensures thread-safe operations.
+        server (socket.socket): The server socket.
+        running (bool): Indicates whether the server is running.
+        protocol (CustomWireProtocol): Instance of `CustomWireProtocol` for encoding/decoding messages.
+    """
     def __init__(self, host=None, port=None):
+        """Initializes the chat server.
+
+        Args:
+            host (str, optional): The server hostname. Defaults to `Config` value.
+            port (int, optional): The server port. Defaults to `Config` value.
+        """
         # Clear log file on server restart
         open("server.log", "w").close()
 
@@ -135,11 +69,25 @@ class ChatServer:
         self.protocol = CustomWireProtocol()
 
     def hash_password(self, password):
-        """Hash password using SHA-256."""
+        """Hashes a password using SHA-256.
+
+        Args:
+            password (str): The password to hash.
+
+        Returns:
+            str: The hashed password.
+        """
         return hashlib.sha256(password.encode()).hexdigest()
 
     def validate_password(self, password):
-        """Ensure password meets minimum requirements."""
+        """Validates password strength.
+
+        Args:
+            password (str): The password to validate.
+
+        Returns:
+            bool: True if the password meets security requirements, False otherwise.
+        """
         if len(password) < 8:
             return False
         if not re.search(r"\d", password):
@@ -149,8 +97,14 @@ class ChatServer:
         return True
 
     def send_success_response(self, client_socket, cmd, success, message=None, payload_parts=None):
-        """
-        Send a structured success response
+        """Sends a structured success response to a client.
+
+        Args:
+            client_socket (socket.socket): The client socket to send the response to.
+            cmd (int): The command type identifier.
+            success (bool): Indicates whether the operation was successful.
+            message (str, optional): A message describing the response.
+            payload_parts (list, optional): Additional payload data to include.
         """
         response_parts = [success]
         
@@ -169,8 +123,13 @@ class ChatServer:
         client_socket.send(response)
 
     def list_users(self, pattern):
-        """
-        Find users matching a pattern
+        """Finds users matching a given search pattern.
+
+        Args:
+            pattern (str): The search pattern (supports wildcards).
+
+        Returns:
+            list: A list of matching users with their online/offline status.
         """
         matches = []
         for username in self.users:
@@ -182,10 +141,23 @@ class ChatServer:
         return matches
 
     def get_unread_count(self, username):
-        """Get count of messages received while user was offline."""
+        """Gets the count of unread messages for a user.
+
+        Args:
+            username (str): The username to check messages for.
+
+        Returns:
+            int: The number of unread messages.
+        """
         return len([msg for msg in self.messages[username] if not msg["read"]])
 
     def handle_client(self, client_socket, address):
+        """Handles communication with a connected client.
+
+        Args:
+            client_socket (socket.socket): The socket representing the client connection.
+            address (tuple): The client's IP address and port.
+        """
         logging.info(f"New connection from {address}")
         current_user = None
         buffer = b''
@@ -574,7 +546,11 @@ class ChatServer:
         client_socket.close()
 
     def start(self):
-        # Find next available port
+        """Starts the chat server.
+
+        This method initializes the server, binds it to the specified 
+        host and port, and listens for incoming client connections.
+        """
         try:
             self.port = self.find_free_port(self.port)
             config = Config()
@@ -609,11 +585,23 @@ class ChatServer:
             self.server.close()
 
     def stop(self):
+        """Stops the chat server by closing the socket and terminating active connections."""
         self.running = False
         if self.server:
             self.server.close()
 
     def find_free_port(self, start_port):
+        """Finds an available port starting from a given number.
+
+        Args:
+            start_port (int): The starting port number.
+
+        Returns:
+            int: The first available port number.
+
+        Raises:
+            RuntimeError: If no free ports are available.
+        """
         port = start_port
         max_port = 65535
         
