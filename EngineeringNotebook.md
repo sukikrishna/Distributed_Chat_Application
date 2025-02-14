@@ -23,31 +23,31 @@ Some features of the application that were added by the end of work session is h
 ##### Work Completed 
 
 - Starter Code & Initial Setup
-Used ChatGPT to generate base code for the JSON protocol version.
-Modified code to meet design criteria and ensure basic client-server communication.
-Established the initial message-passing structure and GUI layout using Tkinter.
+    - Used ChatGPT to generate base code for the JSON protocol version.
+    - Modified code to meet design criteria and ensure basic client-server communication.
+    - Established the initial message-passing structure and GUI layout using Tkinter.
 - Testing & Debugging
-Verified message sending and receiving between client and server.
-Encountered and addressed message display inconsistencies.
-Debugged the issue of messages not appearing correctly after being sent.
-Identified that messages sent to oneself resulted in an unpacking error in refresh_messages().
-Tested account deletion logic and confirmed that deleted accounts should not receive messages.
-Found that message deletions were incorrectly displaying only the sender username instead of the message content.
+    - Verified message sending and receiving between client and server.
+    - Encountered and addressed message display inconsistencies.
+    - Debugged the issue of messages not appearing correctly after being sent.
+    - Identified that messages sent to oneself resulted in an unpacking error in refresh_messages().
+    - Tested account deletion logic and confirmed that deleted accounts should not receive messages.
+    - Found that message deletions were incorrectly displaying only the sender username instead of the message content.
 - GUI Enhancements
-Adjusted account listing to display usernames rather than only online/offline status.
-Worked on improving user experience by showing the current logged-in username.
-Implemented a search function for accounts, aiming for a Gmail-like database search.
-Added a settings panel for account deletion, logging out, and configuring the number of messages displayed.
+    - Adjusted account listing to display usernames rather than only online/offline status.
+    - Worked on improving user experience by showing the current logged-in username.
+    - Implemented a search function for accounts, aiming for a Gmail-like database search.
+    - Added a settings panel for account deletion, logging out, and configuring the number of messages displayed.
 - Database & Cross-System Functionality
-Determined that the application relies on an in-memory database, causing data loss on restart.
-Identified the need to set up a remote SQL server for persistence and multi-client interactions.
-Noted that the current design only allows interactions between users created on the same local server.
-Found that accounts are tied to specific initialized ports, preventing smooth cross-system messaging.
-Next Steps
-Fix self-messaging errors and improve message history display.
-Improve GUI usability, including better message visualization and unread message tracking.
-Enhance protocol efficiency by comparing JSON vs. custom protocol implementations.
-Finalize documentation, including a README with instructions, and create demo visuals.
+    - Determined that the application relies on an in-memory database, causing data loss on restart.
+    - Identified the need to set up a remote SQL server for persistence and multi-client interactions.
+    - Noted that the current design only allows interactions between users created on the same local server.
+    - Found that accounts are tied to specific initialized ports, preventing smooth cross-system messaging.
+- Next Steps
+    - Fix self-messaging errors and improve message history display.
+    - Improve GUI usability, including better message visualization and unread message tracking.
+    - Enhance protocol efficiency by comparing JSON vs. custom protocol implementations.
+    - Finalize documentation, including a README with instructions, and create demo visuals.
 
 #### Feb 8, 2025
 
@@ -67,27 +67,27 @@ Below are some UI design mockups of our chat application messaging features for 
 ##### Work Completed
 
 - Refining Chat Structure
-Designed the application to function more like a real-time chat rather than email.
-Implemented separate chat threads for individual and group chats.
-Ensured that unread messages are only stored if the recipient is on a different page or logged out.
-Allowed real-time message display if the recipient is on the chat page.
-Designed group chat as a single universal chatroom for all logged-in users, rather than allowing custom group selection.
+    - Designed the application to function more like a real-time chat rather than email.
+    - Implemented separate chat threads for individual and group chats.
+    - Ensured that unread messages are only stored if the recipient is on a different page or logged out.
+    - Allowed real-time message display if the recipient is on the chat page.
+    - Designed group chat as a single universal chatroom for all logged-in users, rather than allowing custom group selection.
 - UI and Functional Enhancements
-Created a settings page to manage the number of displayed messages and other account options.
-Implemented a mechanism for logging in and switching between group and individual chat pages.
-Allowed messages to be formatted as clickable elements, enabling deletion via selection.
-Began work on implementing a refresh button to update the contacts list dynamically.
+    - Created a settings page to manage the number of displayed messages and other account options.
+    - Implemented a mechanism for logging in and switching between group and individual chat pages.
+    - Allowed messages to be formatted as clickable elements, enabling deletion via selection.
+    - Began work on implementing a refresh button to update the contacts list dynamically.
 - Message Persistence and Handling
-Identified that chat history is not preserved after logging out; messages should remain visible after re-login.
-Found that the system currently displays all messages in the same window when switching between individual and group chats; messages need to be properly separated.
-Started working on a way to selectively show only ‘n’ messages per chat window, based on user-defined settings.
+    - Identified that chat history is not preserved after logging out; messages should remain visible after re-login.
+    - Found that the system currently displays all messages in the same window when switching between individual and group chats; messages need to be properly separated.
+    - Started working on a way to selectively show only ‘n’ messages per chat window, based on user-defined settings.
 - Fixes and Next Steps
-Need to ensure newly created accounts are immediately reflected in the contacts list.
-Add a notification popup when a user receives a message from someone they haven’t interacted with before.
-Implement the ability to delete messages and chats properly while preserving unread message counts.
-Ensure proper logout behavior and status updates for online/offline visibility.
-Secure authentication by ensuring passwords are stored as hashed values rather than plaintext.
-Add wildcard search functionality to allow users to search contacts efficiently.
+    - Need to ensure newly created accounts are immediately reflected in the contacts list.
+    - Add a notification popup when a user receives a message from someone they haven’t interacted with before.
+    - Implement the ability to delete messages and chats properly while preserving unread message counts.
+    - Ensure proper logout behavior and status updates for online/offline visibility.
+    - Secure authentication by ensuring passwords are stored as hashed values rather than plaintext.
+    - Add wildcard search functionality to allow users to search contacts efficiently.
 
 #### Feb 9, 2025
 
@@ -107,29 +107,29 @@ Below is image of our original interface design and new design. Originally, can 
 ##### Work Completed
 
 - Redesigning Message Handling
-Simplified the messaging structure to function like Gmail.
-Removed the group chat feature to focus on individual messaging.
-Ensured all incoming messages go to the unread messages section until checked.
-Established rules where history retains all messages, while "Check Unread Messages" only displays the latest n unread messages.
+    - Simplified the messaging structure to function like Gmail.
+    - Removed the group chat feature to focus on individual messaging.
+    - Ensured all incoming messages go to the unread messages section until checked.
+    - Established rules where history retains all messages, while "Check Unread Messages" only displays the latest n unread messages.
 - Fixing Message Persistence & Display
-Addressed issues where unread messages were appearing in history before being checked.
-Ensured messages appear in the correct order (previously displayed inconsistently in chronological or reverse order).
-Began work on implementing a mechanism to display only n messages at a time, based on user-defined settings.
+    - Addressed issues where unread messages were appearing in history before being checked.
+    - Ensured messages appear in the correct order (previously displayed inconsistently in chronological or reverse order).
+    - Began work on implementing a mechanism to display only n messages at a time, based on user-defined settings.
 - Enhancing User Interface & Experience
-Adjusted the users display to show all accounts and their online/offline status.
-Removed dropdown selection for recipients; instead, the recipient field is automatically filled when a username is selected.
-Planned a refresh button to update new accounts and status changes dynamically.
+    - Adjusted the users display to show all accounts and their online/offline status.
+    - Removed dropdown selection for recipients; instead, the recipient field is automatically filled when a username is selected.
+    - Planned a refresh button to update new accounts and status changes dynamically.
 - Bug Fixes & Functionality Improvements
-Worked on pop-up notifications for receiving new messages while on different pages (e.g., login or users tab).
-Addressed message deletion issues to ensure they properly disappear from chat history.
-Began testing hosting the application on multiple devices to support cross-system communication.
-Explored using different data formats for the custom protocol (e.g., JSON vs. strings/bytes/binary).
+    - Worked on pop-up notifications for receiving new messages while on different pages (e.g., login or users tab).
+    - Addressed message deletion issues to ensure they properly disappear from chat history.
+    - Began testing hosting the application on multiple devices to support cross-system communication.
+    - Explored using different data formats for the custom protocol (e.g., JSON vs. strings/bytes/binary).
 - Next Steps
-Implement and test the n message display limit to ensure smooth pagination.
-Finalize message deletion logic to remove messages correctly from all relevant sections.
-Enable real-time updates for account status and unread message count.
-Complete the comparison of JSON vs. custom protocol, measuring data size and transfer efficiency.
-Continue debugging message read/unread logic to ensure accuracy when switching between tabs.
+    - Implement and test the n message display limit to ensure smooth pagination.
+    - Finalize message deletion logic to remove messages correctly from all relevant sections.
+    - Enable real-time updates for account status and unread message count.
+    - Complete the comparison of JSON vs. custom protocol, measuring data size and transfer efficiency.
+    - Continue debugging message read/unread logic to ensure accuracy when switching between tabs.
 
 #### Feb 10, 2025
 
@@ -139,35 +139,35 @@ A major milestone was refining our approach to unread and read messages. Message
 ##### Work Completed
 
 - Message Handling Improvements
-Ensured messages sent to deleted accounts are handled properly (i.e., sender receives a notification that the user does not exist).
-Refactored message order so it consistently displays from oldest to newest (by default).
-Implemented an option to toggle between oldest-to-newest and newest-to-oldest sorting in the settings panel.
-Fixed unread messages so they only move to history after being explicitly checked.
-Ensured the pop-up notification for new messages correctly reflects the number of unread messages, both while logged in and when logging back in.
+    - Ensured messages sent to deleted accounts are handled properly (i.e., sender receives a notification that the user does not exist).
+    - Refactored message order so it consistently displays from oldest to newest (by default).
+    - Implemented an option to toggle between oldest-to-newest and newest-to-oldest sorting in the settings panel.
+    - Fixed unread messages so they only move to history after being explicitly checked.
+    - Ensured the pop-up notification for new messages correctly reflects the number of unread messages, both while logged in and when logging back in.
 - Multi-Device Hosting & Networking
-Researched firewall and WiFi issues related to hosting on two separate devices.
-Implemented a script to auto-detect the local IP address instead of relying on hardcoded values.
-Clarified documentation regarding IP configuration for Windows and Linux/WSL2.
-Ensured the server passes the correct port to the client for security reasons.
-Investigated and tested different methods for running the application on multiple machines.
+    - Researched firewall and WiFi issues related to hosting on two separate devices.
+    - Implemented a script to auto-detect the local IP address instead of relying on hardcoded values.
+    - Clarified documentation regarding IP configuration for Windows and Linux/WSL2.
+    - Ensured the server passes the correct port to the client for security reasons.
+    - Investigated and tested different methods for running the application on multiple machines.
 - UI & Display Enhancements
-Updated the user list to reflect online/offline status accurately and immediately when an account is created or deleted.
-Added logic to auto-update the display when an account is deleted without requiring a manual refresh.
-Improved the "To:" field in the message composition area to be inline instead of separate lines.
-Addressed minor UI glitches, including adjusting message counts to update in real-time.
+    - Updated the user list to reflect online/offline status accurately and immediately when an account is created or deleted.
+    - Added logic to auto-update the display when an account is deleted without requiring a manual refresh.
+    - Improved the "To:" field in the message composition area to be inline instead of separate lines.
+    - Addressed minor UI glitches, including adjusting message counts to update in real-time.
 - Protocol & Logging Enhancements
-Continued merging implementations of JSON and custom protocols.
-Measured and compared data transfer efficiency between JSON and a custom string-based protocol.
-Ensured logs reset correctly when the server closes.
-Began preparing for demo GIFs showcasing key functionalities.
-Added version tracking for message packets to maintain backward compatibility with future updates.
+    - Continued merging implementations of JSON and custom protocols.
+    - Measured and compared data transfer efficiency between JSON and a custom string-based protocol.
+    - Ensured logs reset correctly when the server closes.
+    - Began preparing for demo GIFs showcasing key functionalities.
+    - Added version tracking for message packets to maintain backward compatibility with future updates.
 - Next Steps & Remaining Issues
-Complete hosting setup to work seamlessly across multiple devices.
-Finalize merging the JSON and custom protocol implementations.
-Ensure new accounts appear instantly in the contact list without requiring a full refresh.
-Address security concerns related to storing passwords (move to proper hashing mechanism).
-Add a wildcard search function for filtering contacts.
-Review and refine documentation, including engineering notebook updates and final demo preparations.
+    - Complete hosting setup to work seamlessly across multiple devices.
+    - Finalize merging the JSON and custom protocol implementations.
+    - Ensure new accounts appear instantly in the contact list without requiring a full refresh.
+    - Address security concerns related to storing passwords (move to proper hashing mechanism).
+    - Add a wildcard search function for filtering contacts.
+    - Review and refine documentation, including engineering notebook updates and final demo preparations.
 
 #### Feb 11, 2025
 
@@ -184,26 +184,26 @@ Below is example of how incoming messages were being decoded incorrectly.
 ##### Work Completed
 
 - Rebuilding the Custom Protocol Implementation
-Recreated the custom protocol scripts using a modified version of the JSON protocol, preserving UI and interactive elements.
-Ensured basic features such as login, logout, account creation, and search worked before addressing message-passing issues.
+    - Recreated the custom protocol scripts using a modified version of the JSON protocol, preserving UI and interactive elements.
+    - Ensured basic features such as login, logout, account creation, and search worked before addressing message-passing issues.
 - Fixing Message Encoding & Decoding Issues
-Investigated struct library usage and how binary data was being packed and unpacked.
-Simplified encoding to use three fields: header, message length, and message.
-Identified incorrect byte allocations that caused message parsing issues and manually verified all encoded fields.
-Successfully implemented message passing with proper decoding.
+    - Investigated struct library usage and how binary data was being packed and unpacked.
+    - Simplified encoding to use three fields: header, message length, and message.
+    - Identified incorrect byte allocations that caused message parsing issues and manually verified all encoded fields.
+    - Successfully implemented message passing with proper decoding.
 - Distributed System Testing
-Ran the system across multiple devices to confirm message passing worked correctly.
-Addressed issues related to incorrect message parsing when messages were shorter than allocated packet memory.
+    - Ran the system across multiple devices to confirm message passing worked correctly.
+    - Addressed issues related to incorrect message parsing when messages were shorter than allocated packet memory.
 - Repository Cleanup & Execution Enhancements
-Added test code and documentation to improve usability.
-Implemented a single command-line execution method using flags to specify client/server and protocol type.
-Ensured configuration updates dynamically with the correct port.
-Added code to auto-detect and store the user’s local IP address for Windows users.
+    - Added test code and documentation to improve usability.
+    - Implemented a single command-line execution method using flags to specify client/server and protocol type.
+    - Ensured configuration updates dynamically with the correct port.
+    - Added code to auto-detect and store the user’s local IP address for Windows users.
 - Next Steps & Remaining Tasks:
-Finalize protocol comparison (JSON vs. custom) by measuring message size and transmission efficiency.
-Add more test cases to validate edge scenarios in message encoding/decoding.
-Complete demo videos and README documentation for submission.
-Ensure logs reset correctly after the server closes.
+    - Finalize protocol comparison (JSON vs. custom) by measuring message size and transmission efficiency.
+    - Add more test cases to validate edge scenarios in message encoding/decoding.
+    - Complete demo videos and README documentation for submission.
+    - Ensure logs reset correctly after the server closes.
 
 #### Feb 12, 2025
 
@@ -213,21 +213,21 @@ We confirmed that the script correctly used the os module to internally call the
 ##### Work Completed
 
 - Finalizing Documentation & Usability Improvements
-Completed README.md with setup instructions, flag usage, and example commands.
-Clarified protocol details, including JSON vs. custom protocol differences.
-Ensured documentation explained how local IP addresses are handled dynamically.
+    - Completed README.md with setup instructions, flag usage, and example commands.
+    - Clarified protocol details, including JSON vs. custom protocol differences.
+    - Ensured documentation explained how local IP addresses are handled dynamically.
 - Testing & Debugging Execution Flow
-Double-checked that scripts correctly launch the server and client without requiring users to navigate directories manually.
-Ensured flags (--client/--server, --json/--custom, --host, --port) were correctly parsed and applied.
-Verified that command-line arguments take precedence over config file values.
+    - Double-checked that scripts correctly launch the server and client without requiring users to navigate directories manually.
+    - Ensured flags (--client/--server, --json/--custom, --host, --port) were correctly parsed and applied.
+    - Verified that command-line arguments take precedence over config file values.
 - Adding & Running Tests
-Implemented basic unit tests to validate message encoding and decoding for both protocols.
-Added test cases to check for edge cases in message parsing, including handling incorrect byte lengths.
-Verified that the message sorting options (oldest-to-newest, newest-to-oldest) functioned as expected.
+    - Implemented basic unit tests to validate message encoding and decoding for both protocols.
+    - Added test cases to check for edge cases in message parsing, including handling incorrect byte lengths.
+    - Verified that the message sorting options (oldest-to-newest, newest-to-oldest) functioned as expected.
 - Repository Cleanup & Final Adjustments
-Ensured that all necessary files were included in the repository before final submission.
-Checked that the logging system resets correctly when restarting the server.
-Reviewed error handling and added meaningful error messages for common issues (e.g., missing arguments, invalid protocol selection).
+    - Ensured that all necessary files were included in the repository before final submission.
+    - Checked that the logging system resets correctly when restarting the server.
+    - Reviewed error handling and added meaningful error messages for common issues (e.g., missing arguments, invalid protocol selection).
 
 #### Feb 13, 2025
 
@@ -235,6 +235,6 @@ We cleaned up the code for the final submission and worked on the code review an
 
 ##### Work Completed
 
-Fixed the version number issue in the code and added proper checks
-Cleaned up and reformatted the engineering notebook
-Wrote a proper code review based on the detailed notes that we took for each team.
+    - Fixed the version number issue in the code and added proper checks
+    - Cleaned up and reformatted the engineering notebook
+    - Wrote a proper code review based on the detailed notes that we took for each team.
