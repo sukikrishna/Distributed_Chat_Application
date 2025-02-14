@@ -1,4 +1,4 @@
-custom_protocol
+Modules
 ===============
 
 .. toctree::
