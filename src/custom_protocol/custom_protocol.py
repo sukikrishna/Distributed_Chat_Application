@@ -5,8 +5,9 @@ class CustomWireProtocol:
     Custom wire protocol for message encoding and decoding.
 
     Message format:
-        - 4 bytes: Total message length
+        - 2 bytes: Version number (bytes)
         - 2 bytes: Command type (unsigned short)
+        - 4 bytes: Total message length
         - Remaining bytes: Payload
 
     Attributes:
