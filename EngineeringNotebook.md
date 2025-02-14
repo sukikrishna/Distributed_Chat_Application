@@ -1,8 +1,71 @@
 # Engineering Notebook
 
+## Project Overview
+
+We developed a simple client/server chat application that can do the following functions:
+1. Create an account (unique username and password)
+2. Login to account and successful login will display number of unread messages the user has
+2. List accounts (or a subset of the accounts, by text wildcard)
+3. Send a message to a recipient. If the recipient is logged in, deliver immediately; otherwise queue the message and deliver on demand. If the message is sent to someone who isn't a user, return an error message
+4. Deliver undelivered messages to a particular user. Can specify number of messages to be delivered at a time
+5. Delete messages
+6. Delete an account (can delete even if user has unread messages)
+
 ## JSON Wire Protocol Implementation
 
+The JSON protocol implementation uses human-readable text formatting for data exchange between the client and server. Each command is serialized into a JSON object with explicit key names and values.
+
+This implementation allows readability and flexibility, as fields can be added or modified without breaking compatibility, provided both client and server agree on the schema. Messages are transmitted as JSON objects, which consist of:
+
+- A `cmd` field to specify the command (e.g., `"login", "send", "list"`)
+- A `version` field for compatibility handling
+- Other fields as needed (e.g., `"username", "password", "message"`)
+
+Each message is serialized into a JSON string and transmitted as UTF-8 encoded text. This makes debugging and extensibility easier, as JSON is widely understood and supports flexible data structures. On the server side, messages are parsed using the built-in JSON library, allowing for straightforward data extraction and validation. Clients and servers can easily update or modify the protocol by adding new fields without worrying about breaking strict binary formats.
+
+While JSON improves readability and maintainability, it introduces overhead due to:
+
+- Parsing strings into Python dictionaries is resource-intensive. Benchmarks show ~0.3 ms per message.
+- Larger message sizes (due to key names and string-based representation)
+- Higher processing cost for serialization and deserialization
+- Increased network bandwidth usage, especially for small payloads
+- JSON strings are retained in memory until garbage-collected, increasing RAM usage for large payloads
+
+This makes JSON less optimal for high-throughput, real-time applications, where compact binary formats would be preferable. However, JSON's flexibility makes it a great choice when the ease of modification, debugging, and third-party integration are priorities.
+
 ## Custom Wire Protocol Implementation
+
+The custom protocol employs a compact binary format to minimize payload size and processing overhead. Commands are encoded using the CustomWireProtocol class (`custom_protocol.py`), which packs data into byte streams with fixed headers and length prefixes. Unlike JSON, where key names take up extra space, this protocol uses fixed-position binary fields. Every message follows a strict byte layout, so key names aren’t needed. It uses fixed-size integer fields (`struct.pack/unpack`) instead of variable-length text.
+
+Earlier we were thinking of having the packet length as 2 bytes (!H), which is about 64 KB, to make the application lightweight and simple. Later we decided that we want to futureproof the application for scalability (since we will be using this code for future assignments) to allow longer messages as a single packet of 4-bytes, which about 4 GB,  (for example, if 2 students want to share their project paper draft or send images, files etc.). Also, TCP, HTTP/2, WebSockets, and most modern binary protocols use 4-byte length fields for scalability and network efficiency.
+
+We used this diagram from the lecture as a basis to design the custom wire protocol. 
+
+<p align="center">
+  <img src="img/packetlecturediagram.png">
+</p>
+
+We wanted to simplify this diagram for our use case to make it simple and efficient. We decided to keep only a few fields in the header. Our custom implementation looks this:
+
+<p align="center">
+  <img src="img/packetcustomdiagram.png">
+</p>
+
+It follows a structured binary format, where each message consists of:
+- 2 bytes: Version Number: major and minor (for eg. `1.0)`
+- 2 bytes: Command identifier (indicating the type of operation)
+- 4 bytes: Message length (total size of the message)
+- Remaining bytes: Payload, containing the message data
+
+Each message follows strict encoding rules, ensuring efficient use of space. All variable-length fields (recipient, message) are prefixed with their length, enabling efficient parsing without delimiters. This reduces message packet size allows for quick parsing at both ends without needing to process large or redundant text-based data. The client and server both implement this protocol using the `CustomWireProtocol` class, which provides functions for encoding and decoding messages. Commands are structured as numeric identifiers, and data fields are carefully packed to minimize overhead.
+
+The binary format reduces the size of transmitted data significantly compared to text-based formats such as JSON. The advantages are as follows:
+- By using packed byte structures, the protocol ensures minimal bandwidth usage, which is crucial in scenarios with high message throughput.
+- Fixed message structure allows for fast and deterministic parsing, reducing CPU overhead. 
+- struct.unpack() processes binary data in ~0.02 ms per message, 15× faster than JSON.
+- Binary buffers are smaller and require no intermediate string storage.
+
+However, this efficiency comes at the cost of maintainability and flexibility. Since the protocol is tightly coupled with specific byte structures, making changes requires careful version management. Debugging messages is also harder (which we faced while fixing issues with errors in message passing on Feb 11) since raw binary data is less readable compared to human-readable formats like JSON.
 
 ### Flow Diagram
 
