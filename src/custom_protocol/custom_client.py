@@ -440,7 +440,7 @@ class ChatClient:
                 # Process complete messages
                 while len(buffer) >= 6:
                     # Peek at message length
-                    total_length = struct.unpack('!I', buffer[:4])[0]
+                    total_length = struct.unpack('!I', buffer[4:8])[0]
                     
                     # Check if we have a complete message
                     if len(buffer) < total_length:
@@ -451,7 +451,7 @@ class ChatClient:
                     buffer = buffer[total_length:]
                     
                     # Decode message
-                    _, cmd, payload = self.protocol.decode_message(message_data)
+                    _, _, cmd, _, payload = self.protocol.decode_message(message_data)
                     
                     # Process the message
                     self.root.after(0, self.handle_message, cmd, payload)

@@ -20,6 +20,10 @@ class CustomWireProtocol:
         CMD_DELETE_ACCOUNT (int): Command identifier for deleting an account.
         CMD_LOGOUT (int): Command identifier for logging out.
     """
+    # version number
+    VERSION_MAJOR = 1  # Major version
+    VERSION_MINOR = 0  # Minor version
+
     # Command type constants
     CMD_CREATE = 1
     CMD_LOGIN = 2
@@ -35,6 +39,7 @@ class CustomWireProtocol:
     def encode_message(cmd, payload_parts):
         """
         Encodes a message for transmission.
+        Version (2 bytes) -> Command (2 bytes) -> Packet Length (4 bytes) -> Payload
 
         Args:
             cmd (int): The command type identifier.
@@ -83,9 +88,11 @@ class CustomWireProtocol:
         
         # Combine payload parts
         payload = b''.join(encoded_payload)
-        
-        # Pack total length (4 bytes), command (2 bytes), then payload
-        header = struct.pack('!IH', len(payload) + 6, cmd)
+        total_length = len(payload) + 8  # 2 (version) + 2 (cmd) + 4 (length)
+
+        # Pack total = version (2 bytes) command (2 bytes), length (4 bytes), then payload
+        header = struct.pack('!BBHI', CustomWireProtocol.VERSION_MAJOR, CustomWireProtocol.VERSION_MINOR, cmd, total_length)
+
         return header + payload
 
     @staticmethod
@@ -102,9 +109,11 @@ class CustomWireProtocol:
                 - cmd (int): The command identifier.
                 - payload (bytes): The payload data.
         """
-        total_length, cmd = struct.unpack('!IH', data[:6])
-        payload = data[6:total_length]
-        return total_length, cmd, payload
+        version_major, version_minor, cmd, total_length = struct.unpack('!BBHI', data[:8])  # **New order**
+        payload = data[8:total_length]
+        # return total_length, cmd, payload
+        return version_major, version_minor, cmd, total_length, payload
+
 
     @staticmethod
     def decode_string(data):

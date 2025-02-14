@@ -172,9 +172,9 @@ class ChatServer:
                 buffer += chunk
 
                 # Process complete messages
-                while len(buffer) >= 6:
+                while len(buffer) >= 8:
                     try:
-                        total_length = struct.unpack('!I', buffer[:4])[0]
+                        total_length = struct.unpack('!I', buffer[4:8])[0]
                     except struct.error:
                         logging.error("Invalid message length")
                         break
@@ -189,10 +189,34 @@ class ChatServer:
 
                     # Safely decode message
                     try:
-                        _, cmd, payload = self.protocol.decode_message(message_data)
+                        version_major, version_minor, cmd, _, payload = self.protocol.decode_message(message_data)
                     except Exception as decode_error:
                         logging.error(f"Error decoding message: {decode_error}")
                         break
+
+                    # **Check version compatibility**
+                    if (version_major, version_minor) != (CustomWireProtocol.VERSION_MAJOR, CustomWireProtocol.VERSION_MINOR):
+                        logging.warning(f"Unsupported protocol version: {version_major}.{version_minor} from {address}")
+                        self.send_error_response(client_socket, "Unsupported protocol version")
+                        continue
+
+                    # **Check if command is valid**
+                    valid_commands = {
+                        CustomWireProtocol.CMD_CREATE,
+                        CustomWireProtocol.CMD_LOGIN,
+                        CustomWireProtocol.CMD_LIST,
+                        CustomWireProtocol.CMD_SEND,
+                        CustomWireProtocol.CMD_GET_MESSAGES,
+                        CustomWireProtocol.CMD_GET_UNDELIVERED,
+                        CustomWireProtocol.CMD_DELETE_MESSAGES,
+                        CustomWireProtocol.CMD_DELETE_ACCOUNT,
+                        CustomWireProtocol.CMD_LOGOUT,
+                    }
+
+                    if cmd not in valid_commands:
+                        logging.warning(f"Unknown command {cmd} received from {address}")
+                        self.send_error_response(client_socket, "Unknown command")
+                        continue
 
                     # Process different command types
                     with self.lock:
