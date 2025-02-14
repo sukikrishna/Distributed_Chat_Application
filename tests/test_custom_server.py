@@ -59,7 +59,7 @@ def wire_protocol():
     return CustomWireProtocol()
 
 def verify_success_response(mock_socket, wire_protocol):
-    _, cmd, payload = wire_protocol.decode_message(mock_socket.sent_data[0])
+    _, _, _, cmd, payload = wire_protocol.decode_message(mock_socket.sent_data[0])
     success = struct.unpack('!?', payload[:1])[0]
     return success
 
