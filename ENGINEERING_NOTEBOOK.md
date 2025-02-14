@@ -333,6 +333,11 @@ We confirmed that the script correctly used the os module to internally call the
     - Completed README.md with setup instructions, flag usage, and example commands.
     - Clarified protocol details, including JSON vs. custom protocol differences.
     - Ensured documentation explained how local IP addresses are handled dynamically.
+    - Generated Sphinx documentation in read-the-docs theme:
+    <p align="center">
+        <img src="img/sphinx.png">
+    </p>
+
 - Testing & Debugging Execution Flow
     - Double-checked that scripts correctly launch the server and client without requiring users to navigate directories manually.
     - Ensured flags (--client/--server, --json/--custom, --host, --port) were correctly parsed and applied.
