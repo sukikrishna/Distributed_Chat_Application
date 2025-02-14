@@ -81,16 +81,16 @@ The custom protocol eliminates redundancy through:
 
 For example, the login command above consumes 50 bytes, whereas the same command in a binary protocol uses 23 bytes (see Custom Protocol section). This inefficiency scales with message frequency: 
 
-### Example 1: Login
+#### Example 1: Login
 
 | Protocol | Payload                                                           | Size (Bytes) | Breakdown                                                                                                                                         |
 |----------|-------------------------------------------------------------------|-------------:|---------------------------------------------------------------------------------------------------------------------------------------------------|
-| **JSON** | `{"version":"01", "cmd":"login","username":"alice","password":"Pass1234"}`        |          69 | - 2 braces (`{`,`}`)<br/>- 3 commas (`,`)<br/>- 4 colons (`:`)<br/>- 8 quotes around keys<br/>- 26 characters in keys (`version`, `cmd`, `username`, `password`)<br/>- 8 quotes around values<br/>- 18 characters in values (`01`, `login`, `alice`, `Pass1234`)<br/> |
+| **JSON** | `{"version":"01", "cmd":"login", "username":"alice", "password":"Pass1234"}`        |          69 | - 2 braces (`{`,`}`)<br/>- 3 commas (`,`)<br/>- 4 colons (`:`)<br/>- 8 quotes around keys<br/>- 26 characters in keys (`version`, `cmd`, `username`, `password`)<br/>- 8 quotes around values<br/>- 18 characters in values (`01`, `login`, `alice`, `Pass1234`)<br/> |
 | **Custom** | Header (`CMD_LOGIN=2`) + `alice` (5B) + `Pass1234` (8B) + length prefixes |          25  | - 8 B binary header<br/>- 17 B payload:<br/>&emsp;• 2 B cmd (`2`)<br/>&emsp;• 1 B length + 5 B `alice`<br/>&emsp;• 1 B length + 8 B `Pass1234`<br/> |
 
 ---
 
-### Example 2: Send Message
+#### Example 2: Send Message
 
 | Protocol | Payload                                       | Size (Bytes) | Breakdown                                                                                                                                   |
 |----------|-----------------------------------------------|-------------:|---------------------------------------------------------------------------------------------------------------------------------------------|
@@ -111,6 +111,7 @@ For example, the login command above consumes 50 bytes, whereas the same command
   b'Hello!'                                      # 6-byte message
 ] -->
 
+Based on the results above, we can try to compute how both the protocols will behave at a larger scale.
 
 ### Scalability
 
