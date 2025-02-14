@@ -235,6 +235,6 @@ We cleaned up the code for the final submission and worked on the code review an
 
 ##### Work Completed
 
-    - Fixed the version number issue in the code and added proper checks
-    - Cleaned up and reformatted the engineering notebook
-    - Wrote a proper code review based on the detailed notes that we took for each team.
+- Fixed the version number issue in the code and added proper checks
+- Cleaned up and reformatted the engineering notebook
+- Wrote a proper code review based on the detailed notes that we took for each team.
