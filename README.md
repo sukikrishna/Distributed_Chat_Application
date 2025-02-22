@@ -10,6 +10,7 @@ This project implements a real-time chat application with two different wire pro
 
 - **Custom Wire Protocol**: A binary format designed for efficient message exchange.
 - **JSON Wire Protocol**: A structured, human-readable format for communication.
+- **gRPC Protocol**: A RPC framework using Protocol Buffers for structured, compressed messaging.
 
 The application consists of a client-server architecture, where users can authenticate, send/recieve messages, and manage accounts.
 
@@ -48,6 +49,7 @@ The `run_chat.py` script provides a command-line interface to start the chat ser
 - `--port <port>`: Port number to use (Optional, defaults to the configuration file).
 - `--json`: Runs the application using the JSON wire protocol (Default if no protocol is specified).
 - `--custom`: Runs the application using the custom binary wire protocol.
+- `--gRPC`: Runs the application using gRPC.
 
 #### Example Commands
 
@@ -94,6 +96,22 @@ The `run_chat.py` script provides a command-line interface to start the chat ser
   [Header: 4 bytes | Command: 2 bytes | Payload: variable size]
   ```
 - Suitable for applications requiring optimized network performance.
+
+### 3. Custom Wire Protocol
+
+- Uses Protocol Buffers (Protobuf) for structured message exchange.
+- Messages are automatically serialized/deserialized, reducing the need for manual parsing.
+- Supports compression (e.g., gzip, Snappy) to optimize message size.
+- Enables bidirectional streaming, eliminating the need for polling.
+- Built-in type safety ensures messages are correctly formatted.
+- Example gRPC Message Definition (chat.proto):
+  ```
+  message SendMessageRequest {
+      string username = 1;
+      string to = 2;
+      string content = 3;
+  }
+  ```
 
 ## Screenshots
 
