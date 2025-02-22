@@ -2,6 +2,10 @@
 
 ## DESIGN EXERCISE 2 (RPC)
 
+We re-implemented the chat application using gRPC instead of the custom wire protocol/JSON.
+
+The code for this implementation can be found [here](https://github.com/sukikrishna/CS262DesignExercise1/tree/gRPC/src/gRPC_protocol)
+
 ## Comparison of gRPC vs JSON vs Custom Protocol
 
 #### Does the use of this tool make the application easier or more difficult?
