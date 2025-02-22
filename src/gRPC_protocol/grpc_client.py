@@ -524,7 +524,7 @@ class ChatClient:
             item = self.accounts_list.item(selection[0])
             username = item['values'][0]
             self.recipient_var.set(username)
-            self.notebook.select(2)  # Switch to chat tab
+            self.notebook.select(1)  # Switch to chat tab
 
     def search_accounts(self):
         """Sends a request to the server to search for users."""
@@ -654,13 +654,7 @@ def main():
     host = args.host
 
     # Determine port: use CLI argument if given, otherwise use config
-    if args.port is not None:
-        port = args.port
-    else:
-        try:
-            port = config.get("port")
-        except:
-            port = 50051  # Default gRPC port
+    port = args.port if args.port is not None else config.get("port")
 
     client = ChatClient(host, port)
     client.run()
