@@ -97,7 +97,7 @@ The `run_chat.py` script provides a command-line interface to start the chat ser
   ```
 - Suitable for applications requiring optimized network performance.
 
-### 3. Custom Wire Protocol
+### 3. gRPC Protocol
 
 - Uses Protocol Buffers (Protobuf) for structured message exchange.
 - Messages are automatically serialized/deserialized, reducing the need for manual parsing.
