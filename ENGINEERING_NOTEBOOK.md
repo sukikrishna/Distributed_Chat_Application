@@ -18,6 +18,8 @@ gRPC makes testing much easier compared to JSON and Custom Protocol as well as i
 
 The following tables compare approximate payload sizes between the wire protocol implementations. The gRPC sizes are approximate and refer only to the serialized protobuf payload. The actual transmitted size may be slightly higher because of HTTP/2 framing. gRPC uses HTTP/2 as its transport layer, which adds framing and header overhead to each transmitted message. While the raw payload (i.e. the protobuf message) is small, the actual data transmitted over the network may be slightly larger due to these additional headers. Despite this, the overall efficiency is still much higher compared to JSON, and the benefits of standardized, robust communication outweigh the minor increase from HTTP/2 framing.
 
+When we were testing message passing, we noticed that for smaller messages, the compression is not really effective. For instance, applying gRPC, a 17B message (without compression - refer to Example: Login) becomes 37B (with compression). With smaller messages, the compression has an overhead, but with larger messages, if go beyond a certain overhead, then we notice we can get a bigger benefit from using compression (and for using gRPC compared to the other models).
+
 
 #### Comparison of Protocols
 ##### Example: Login
