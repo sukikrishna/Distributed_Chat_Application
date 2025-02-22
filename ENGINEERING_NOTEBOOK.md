@@ -32,7 +32,7 @@ The following tables compare approximate payload sizes between the wire protocol
 |-----------|-----------------------------------------------|-------------:|---------------------------------------------------------------------------------------------------------------------------------------------|
 | **JSON**  | `{"cmd":"send","to":"bob","content":"Hello"}` | 43 | - 2 braces<br/>- 2 commas<br/>- 3 colons<br/>- 6 quotes around keys<br/>- 12 characters in keys (`cmd`, `to`, `content`)<br/>- 6 quotes around values<br/>- 12 characters in values (`send`, `bob`, `Hello`) |
 | **Custom**| Header (`CMD_SEND=4`) + `bob` + `Hello`         | 21 | - 8 B binary header<br/>- 13 B payload:<br/>&emsp;• 2 B command (`4`)<br/>&emsp;• 1 B length + 3 B `"bob"`<br/>&emsp;• 1 B length + 5 B `"Hello"`<br/>&emsp;• possibly 1 B alignment/flag |
-| **gRPC**  | Protobuf serialized `Message` (client-side fields) with gRPC header | 24 | - Protobuf payload:<br/>&emsp;• Username: key (1) + length (1) + "alice" (5) = 7B<br/>&emsp;• To: key (1) + length (1) + "bob" (3) = 5B<br/>&emsp;• Content: key (1) + length (1) + "Hello" (5) = 7B<br/>- Total payload = 19B + 5B gRPC header |
+| **gRPC**  | Protobuf serialized `Message` (client-side fields) with gRPC header | 26 | - Protobuf payload:<br/>&emsp;• Username: key (1) + length (1) + "alice" (5) = 7B<br/>&emsp;• To: key (1) + length (1) + "bob" (3) = 5B<br/>&emsp;• Content: key (1) + length (1) + "Hello" (5) = 7B<br/>- Total payload = 19B + 7B gRPC header |
 
 
 ## Day to Day Progress
