@@ -380,7 +380,7 @@ class ChatClient:
                 messagebox.showerror("Error", response.message)
             else:
                 self.message_text.delete("1.0", tk.END)
-                messagebox.showinfo("Success", "Message sent")
+                # messagebox.showinfo("Success", "Message sent")
         except grpc.RpcError as e:
             messagebox.showerror("Error", f"Failed to send message: {e}")
 
@@ -442,7 +442,68 @@ class ChatClient:
                 count = self.config.get("message_fetch_limit")
             except:
                 count = 10  # Default value
-                
+            # The stream which will be used to send new messages to clients
+    def ChatStream(self, request_iterator, context):
+        """Creates a stream for sending real-time messages to the client.
+        
+        Args:
+            request_iterator: Iterator of client requests.
+            context: gRPC context.
+            
+        Yields:
+            Message: New messages for the client.
+        """
+        # Extract client address for logging
+        client_address = context.peer()
+        
+        # Get username from the first request
+        try:
+            first_request = next(request_iterator)
+            username = first_request.username
+            
+            # Register this stream for the user
+            if username not in self.active_streams:
+                self.active_streams[username] = []
+            self.active_streams[username].append(context)
+            
+            logging.info(f"Started chat stream for {username} from {client_address}")
+            
+            # Keep the stream alive and listen for messages to deliver
+            for request in request_iterator:
+                # Check if there are messages to deliver
+                with self.lock:
+                    undelivered = [msg for msg in self.messages[username] if not msg["read"]]
+                    for msg in undelivered:
+                        # Mark as read and convert to protobuf message
+                        msg["read"] = True
+                        message = chat.Message(
+                            id=msg["id"],
+                            username=msg["from"],
+                            to=username,
+                            content=msg["content"],
+                            timestamp=msg["timestamp"],
+                            read=True,
+                            delivered_while_offline=msg["delivered_while_offline"]
+                        )
+                        yield message
+                        
+            # When the client disconnects, remove the stream
+            if username in self.active_streams:
+                if context in self.active_streams[username]:
+                    self.active_streams[username].remove(context)
+                if not self.active_streams[username]:
+                    del self.active_streams[username]
+                    # Also mark the user as inactive
+                    if username in self.active_users:
+                        del self.active_users[username]
+                        logging.info(f"User {username} disconnected")
+                        # Broadcast updated user list
+                        self.broadcast_user_list()
+        
+        except StopIteration:
+            logging.warning(f"Empty request iterator from {client_address}")
+        except Exception as e:
+            logging.error(f"Error in ChatStream: {e}")    
         try:
             request = chat.GetMessages(username=self.username, count=count)
             response = self.stub.SendGetMessages(request)
