@@ -1,5 +1,59 @@
 # Engineering Notebook
 
+## DESIGN EXERCISE 2 (RPC)
+
+## Comparison of gRPC vs JSON-over-Sockets vs Custom Protocol
+We observe significant differences in how messages are handled, parsed, and transmitted in the 3 implementations. JSON was quite easy to implement as it relies on human-readable JSON for communication. We were able to construct messages with simple `json.dumps()` and parse responses using `json.loads()`. However, we had to manually extract and validate fields which increased complexity as we added more features to the application.
+
+On the other hand, the Custom Protocol was the most complex to implement, as it needed manual binary encoding and decoding of messages. We had to manage byte parsing manually with `struct.pack()` and `struct.unpack()`. This made debugging difficult since messages are not human-readable, and even small changes in the protocol format introduced compatibility issues. We had some trouble in making sure that the correct number of bytes and matching types were being passed for the header and the message payload. 
+
+We found the gRPC implementation easier than the other two approaches. While initial steps required writing and understanding the functionality of the `.proto` file, gRPC made the work a lot simpler by providing an automated, structured way to define and transmit messages. Instead of manually formatting and parsing messages (which was the most difficult part of the design for the other two methods), we could define a `.proto` schema to define message formats and API endpoints, and gRPC generated the major part of the client and server code that handles serialization, deserialization, and message routing automatically. We had to only focus on writing the GUI functions without worrying about low-level message handling which was mostly similar to what we did for the previous design exercise. With the JSON or Custom Protocol approach, we had to continuously send requests to check for new messages but gRPC keeps a persistent connection open, delivering new messages in real-time without extra requests.
+
+Protocol Buffers encode the data in a compact binary format by using field tags and varint encoding (allows compression of space to encode values which in turn efficiently keeps the size of the data small). gRPC leverages Protocol Buffers to achieve a similar compact payload (slightly larger than custom protocol in the examples in the following tables). The gRPC Overhead is a small 5-byte header added on top of the compact payload (1 byte for the compression flag and 4 bytes for the message length).
+
+The structure of the server and client side code was changed significantly as we mentioned earlier. On the server side, gRPC automatically routes requests to the correct function, so instead of manually processing a "cmd" field like we did for the JSON approach, now the server simply implements a function like `def Login(self, request, context)`, which gRPC calls automatically. It provides built-in concurrency, handling multiple clients efficiently without requiring developers to manually manage threads. On the client side, gRPC automatically generates the client-side stubs with which we could call functions like stub. `Login(request)` directly instead of manually formatting messages.
+
+gRPC makes testing much easier compared to JSON and Custom Protocol as well as it uses `grpcio-testing`. This helps in easily mocking API calls without needing an actual network connection. This means you can easily use libraries like pytest (or even unittest) to test service behavior and responses, so this helped make the tests cleaner and more maintainable compared to the manual tests we had to build for our custom protocol. So essentially, we do not need raw socket simulations like we did for the other two implementations. It also makes assertions on structured responses (`assert response.success == True`) easier. Using `grpc.insecure_channel()` we could do end-to-end testing without requiring a running server, something that was very complex while working with sockets. 
+
+The following tables compare approximate payload sizes between the wire protocol implementations. The gRPC sizes are approximate and refer only to the serialized protobuf payload. The actual transmitted size may be slightly higher because of HTTP/2 framing. gRPC uses HTTP/2 as its transport layer, which adds framing and header overhead to each transmitted message. While the raw payload (i.e. the protobuf message) is small, the actual data transmitted over the network may be slightly larger due to these additional headers. Despite this, the overall efficiency is still much higher compared to JSON, and the benefits of standardized, robust communication outweigh the minor increase from HTTP/2 framing.
+
+
+#### Comparison of Protocols
+##### Example: Login
+| Protocol  | Payload                                                           | Size (Bytes) | Breakdown                                                                                                                                         |
+|-----------|-------------------------------------------------------------------|-------------:|---------------------------------------------------------------------------------------------------------------------------------------------------|
+| **JSON**  | `{"version":"01", "cmd":"login", "username":"alice", "password":"Pass1234"}` | 69 | - 2 braces (`{`,`}`)<br/>- 3 commas (`,`)<br/>- 4 colons (`:`)<br/>- 8 quotes around keys<br/>- 26 characters in keys<br/>- 8 quotes around values<br/>- 18 characters in values |
+| **Custom**| Header (`CMD_LOGIN=2`) + `alice` (5B) + `Pass1234` (8B) + length prefixes | 25 | - 8 B binary header<br/>- 17 B payload:<br/>&emsp;• 2 B command (`2`)<br/>&emsp;• 1 B length + 5 B `"alice"`<br/>&emsp;• 1 B length + 8 B `"Pass1234"` |
+| **gRPC**  | Protobuf serialized `Login` message with gRPC framing header        | 22 | - Protobuf payload:<br/>&emsp;• Username: key (1) + length (1) + "alice" (5) = 7B<br/>&emsp;• Password: key (1) + length (1) + "Pass1234" (8) = 10B<br/>- Total payload = 17B + 5B gRPC header  |
+
+##### Example: Send Message
+| Protocol  | Payload                                       | Size (Bytes) | Breakdown                                                                                                                                   |
+|-----------|-----------------------------------------------|-------------:|---------------------------------------------------------------------------------------------------------------------------------------------|
+| **JSON**  | `{"cmd":"send","to":"bob","content":"Hello"}` | 43 | - 2 braces<br/>- 2 commas<br/>- 3 colons<br/>- 6 quotes around keys<br/>- 12 characters in keys (`cmd`, `to`, `content`)<br/>- 6 quotes around values<br/>- 12 characters in values (`send`, `bob`, `Hello`) |
+| **Custom**| Header (`CMD_SEND=4`) + `bob` + `Hello`         | 21 | - 8 B binary header<br/>- 13 B payload:<br/>&emsp;• 2 B command (`4`)<br/>&emsp;• 1 B length + 3 B `"bob"`<br/>&emsp;• 1 B length + 5 B `"Hello"`<br/>&emsp;• possibly 1 B alignment/flag |
+| **gRPC**  | Protobuf serialized `Message` (client-side fields) with gRPC header | 24 | - Protobuf payload:<br/>&emsp;• Username: key (1) + length (1) + "alice" (5) = 7B<br/>&emsp;• To: key (1) + length (1) + "bob" (3) = 5B<br/>&emsp;• Content: key (1) + length (1) + "Hello" (5) = 7B<br/>- Total payload = 19B + 5B gRPC header |
+
+
+## Day to Day Progress
+
+#### Feb 21-22, 2025
+
+Initiated the gRPC implementation by creating a new branch, and verified that the GUI functionalities remain operational when updating the code to implement gRPC for the communication replacing the wire protocol. Notable differences have emerged between the gRPC and the previous JSON/custom protocol, particularly on the server side.
+
+##### Work Completed
+- Created a new branch dedicated to the gRPC implementation.
+- Identified the need to add a version number to all messages.
+- Generated code using Claude.
+- Confirmed that all GUI functionalities continue to work, though the gRPC portion requires further tweaks.
+- Simplified the code and commands with gRPC, but noted a steeper learning curve in understanding message and command flows compared to the JSON/custom protocol.
+- Observed that the main differences lie in the server’s function calls, while the client code remains largely unchanged by continuing to use the same GUI stubs.
+- Recognized a change in testing: unlike the custom protocol that uses a specialized class for message handling, gRPC allows direct calls to the send message function.
+- Utilized a .pronto script for automatic real-time message transfers and code generation for chat and network communication (RPC).
+
+---------------------------------------
+
+## DESIGN EXERCISE 1 (client/server application)
+
 ## Project Overview
 
 We developed a simple client/server chat application that can do the following functions:
