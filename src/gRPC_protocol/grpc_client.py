@@ -291,11 +291,6 @@ class ChatClient:
         
         # Display notification
         messagebox.showinfo("New Message", f"New message from {message.username}")
-        
-        # Add to message display
-        frame = MessageFrame(self.messages_frame, msg_dict)
-        frame.message_id = message.id
-        frame.pack(fill='x', padx=5, pady=2)
 
     def create_account(self):
         """Sends a request to the server to create a new account."""
@@ -434,15 +429,39 @@ class ChatClient:
         if not self.username:
             messagebox.showwarning("Warning", "Please login first")
             return
+
+        try:  
+            count = int(self.msg_count.get())  
+        except ValueError:  
+            count = self.config.get("message_fetch_limit", 5)  
+                
+        try:  
+            request = chat.GetMessages(username=self.username, count=count)  
+            response = self.stub.SendGetMessages(request)  
             
-        try:
-            count = int(self.msg_count.get())
-        except ValueError:
-            try:
-                count = self.config.get("message_fetch_limit")
-            except:
-                count = 10  # Default value
-            # The stream which will be used to send new messages to clients
+            if response.error:  
+                messagebox.showerror("Error", response.message)  
+            else:  
+                self.clear_messages()  
+                
+                # Only show read messages  
+                for msg in response.messages:  
+                    if msg.read:  
+                        msg_dict = {  
+                            "id": msg.id,  
+                            "from": msg.username,  
+                            "to": msg.to,  
+                            "content": msg.content,  
+                            "timestamp": msg.timestamp,  
+                            "read": True,  
+                            "delivered_while_offline": msg.delivered_while_offline  
+                        }  
+                        frame = MessageFrame(self.messages_frame, msg_dict)  
+                        frame.message_id = msg.id  
+                        frame.pack(fill='x', padx=5, pady=2)  
+        except grpc.RpcError as e:  
+            messagebox.showerror("Error", f"Failed to fetch messages: {e}")              
+
     def ChatStream(self, request_iterator, context):
         """Creates a stream for sending real-time messages to the client.
         
@@ -453,8 +472,6 @@ class ChatClient:
         Yields:
             Message: New messages for the client.
         """
-        # Extract client address for logging
-        client_address = context.peer()
         
         # Get username from the first request
         try:
@@ -465,9 +482,7 @@ class ChatClient:
             if username not in self.active_streams:
                 self.active_streams[username] = []
             self.active_streams[username].append(context)
-            
-            logging.info(f"Started chat stream for {username} from {client_address}")
-            
+                        
             # Keep the stream alive and listen for messages to deliver
             for request in request_iterator:
                 # Check if there are messages to deliver
@@ -496,14 +511,13 @@ class ChatClient:
                     # Also mark the user as inactive
                     if username in self.active_users:
                         del self.active_users[username]
-                        logging.info(f"User {username} disconnected")
                         # Broadcast updated user list
                         self.broadcast_user_list()
         
         except StopIteration:
-            logging.warning(f"Empty request iterator from {client_address}")
+            pass
         except Exception as e:
-            logging.error(f"Error in ChatStream: {e}")    
+            pass  
         try:
             request = chat.GetMessages(username=self.username, count=count)
             response = self.stub.SendGetMessages(request)
@@ -537,43 +551,38 @@ class ChatClient:
         if not self.username:
             messagebox.showwarning("Warning", "Please login first")
             return
-            
-        try:
-            count = int(self.msg_count.get())
-        except ValueError:
-            try:
-                count = self.config.get("message_fetch_limit")
-            except:
-                count = 10  # Default value
+        
+        try:  
+            count = int(self.msg_count.get())  
+        except ValueError:  
+            count = self.config.get("message_fetch_limit", 10)  
                 
-        try:
-            request = chat.GetUndelivered(username=self.username, count=count)
-            response = self.stub.SendGetUndelivered(request)
+        try:  
+            request = chat.GetUndelivered(username=self.username, count=count)  
+            response = self.stub.SendGetUndelivered(request)  
             
-            if response.error:
-                messagebox.showerror("Error", response.message)
-            else:
-                self.clear_messages()
+            if response.error:  
+                messagebox.showerror("Error", response.message)  
+            else:  
+                self.clear_messages()  
                 
-                # Display the messages
-                for msg in response.messages:
-                    # Convert protobuf message to dict for MessageFrame
-                    msg_dict = {
-                        "id": msg.id,
-                        "from": msg.username,
-                        "to": msg.to,
-                        "content": msg.content,
-                        "timestamp": msg.timestamp,
-                        "read": True,  # These are now read
-                        "delivered_while_offline": msg.delivered_while_offline
-                    }
-                    
-                    frame = MessageFrame(self.messages_frame, msg_dict)
-                    frame.message_id = msg.id
-                    frame.pack(fill='x', padx=5, pady=2)
-        except grpc.RpcError as e:
-            messagebox.showerror("Error", f"Failed to fetch unread messages: {e}")
-
+                # Display the messages  
+                for msg in response.messages:  
+                    msg_dict = {  
+                        "id": msg.id,  
+                        "from": msg.username,  
+                        "to": msg.to,  
+                        "content": msg.content,  
+                        "timestamp": msg.timestamp,  
+                        "read": True,  # Force read=True since they're now marked  
+                        "delivered_while_offline": msg.delivered_while_offline  
+                    }  
+                    frame = MessageFrame(self.messages_frame, msg_dict)  
+                    frame.message_id = msg.id  
+                    frame.pack(fill='x', padx=5, pady=2)  
+        except grpc.RpcError as e:  
+            messagebox.showerror("Error", f"Failed to fetch unread messages: {e}")             
+                
     def on_user_select(self, event):
         """Handles user selection from the accounts list.
 

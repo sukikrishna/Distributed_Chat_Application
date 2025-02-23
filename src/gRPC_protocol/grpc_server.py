@@ -116,48 +116,46 @@ class ChatServer(rpc.ChatServerServicer):
             username = first_request.username
             
             # Register this stream for the user
-            if username not in self.active_streams:
-                self.active_streams[username] = []
-            self.active_streams[username].append(context)
-            
-            logging.info(f"Started chat stream for {username} from {client_address}")
-            
-            # Keep the stream alive and listen for messages to deliver
-            for request in request_iterator:
-                # Check if there are messages to deliver
-                with self.lock:
-                    undelivered = [msg for msg in self.messages[username] if not msg["read"]]
-                    for msg in undelivered:
-                        # Mark as read and convert to protobuf message
-                        msg["read"] = True
-                        message = chat.Message(
-                            id=msg["id"],
-                            username=msg["from"],
-                            to=username,
-                            content=msg["content"],
-                            timestamp=msg["timestamp"],
-                            read=True,
-                            delivered_while_offline=msg["delivered_while_offline"]
-                        )
-                        yield message
-                        
-            # When the client disconnects, remove the stream
-            if username in self.active_streams:
-                if context in self.active_streams[username]:
-                    self.active_streams[username].remove(context)
-                if not self.active_streams[username]:
-                    del self.active_streams[username]
-                    # Also mark the user as inactive
-                    if username in self.active_users:
-                        del self.active_users[username]
-                        logging.info(f"User {username} disconnected")
-                        # Broadcast updated user list
-                        self.broadcast_user_list()
-        
-        except StopIteration:
-            logging.warning(f"Empty request iterator from {client_address}")
-        except Exception as e:
-            logging.error(f"Error in ChatStream: {e}")
+            with self.lock:
+                self.active_streams.setdefault(username, []).append(context)  
+            logging.info(f"ChatStream connected for {username}") 
+                                
+            while True:  # Persistent connection loop  
+                time.sleep(0.1)  # Prevent CPU spin  
+                with self.lock:  
+                    # Get messages that haven't been notified OR read  
+                    undelivered = [  
+                        msg for msg in self.messages[username]  
+                        if not msg.get("stream_notified") and not msg["read"]  
+                    ]  
+
+                    for msg in undelivered:  
+                        # Send notification WITHOUT marking as read  
+                        yield chat.Message(  
+                            id=msg["id"],  
+                            username=msg["from"],  
+                            to=username,  
+                            content=msg["content"],  
+                            timestamp=msg["timestamp"],  
+                            read=False,  # Maintain unread status  
+                            delivered_while_offline=msg["delivered_while_offline"]  
+                        )  
+                        msg["stream_notified"] = True  # Track notification  
+
+        except StopIteration:  
+            logging.warning(f"Client {username} disconnected")  
+        except Exception as e:  
+            logging.error(f"Stream error: {e}")  
+        finally:  
+            with self.lock:  
+                if username:  
+                    # Cleanup stream registration  
+                    if context in self.active_streams.get(username, []):  
+                        self.active_streams[username].remove(context)  
+                    # Mark user offline if no active streams  
+                    if not self.active_streams.get(username):  
+                        del self.active_users[username]  
+                        self.broadcast_user_list()  
 
     def SendCreateAccount(self, request, context):
         """Creates a new user account.
@@ -379,27 +377,31 @@ class ChatServer(rpc.ChatServerServicer):
             if username not in self.active_users:
                 logging.warning(f"Failed get_messages request from {client_address}: User not logged in")
                 return chat.MessageList(error=True, message="Not logged in")
-            else:
-                messages = self.get_messages(username)
-                # Convert to proto messages
-                proto_messages = []
-                for msg in messages[:count]:
-                    proto_messages.append(chat.Message(
-                        id=msg["id"],
-                        username=msg["from"],
-                        to=username,
-                        content=msg["content"],
-                        timestamp=msg["timestamp"],
-                        read=msg["read"],
-                        delivered_while_offline=msg["delivered_while_offline"]
-                    ))
-                
-                logging.info(f"User '{username}' retrieved {len(proto_messages)} messages")
-                return chat.MessageList(
-                    error=False,
-                    message=f"Retrieved {len(proto_messages)} messages",
-                    messages=proto_messages
-                )
+
+            # Get read messages sorted by timestamp  
+            read_messages = sorted(  
+                [msg for msg in self.messages[username] if msg["read"]],  
+                key=lambda x: x["timestamp"],  
+                reverse=True  
+            )
+            
+            # Convert to proto messages  
+            proto_messages = [  
+                chat.Message(  
+                    id=m["id"],  
+                    username=m["from"],  
+                    to=username,  
+                    content=m["content"],  
+                    timestamp=m["timestamp"],  
+                    read=True,  
+                    delivered_while_offline=m["delivered_while_offline"]  
+                ) for m in read_messages  
+            ]  
+            
+            return chat.MessageList(  
+                error=False,  
+                messages=proto_messages  
+            )  
 
     def SendGetUndelivered(self, request, context):
         """Gets unread messages for a user.
@@ -414,35 +416,38 @@ class ChatServer(rpc.ChatServerServicer):
         username = request.username
         count = request.count
         client_address = context.peer()
-        
-        with self.lock:
-            if username not in self.active_users:
-                logging.warning(f"Failed get_undelivered request from {client_address}: User not logged in")
-                return chat.MessageList(error=True, message="Not logged in")
-            else:
-                unread = self.get_unread_messages(username, count)
-                
-                # Convert to proto messages and mark as read
-                proto_messages = []
-                for msg in unread:
-                    msg["read"] = True
-                    proto_messages.append(chat.Message(
-                        id=msg["id"],
-                        username=msg["from"],
-                        to=username,
-                        content=msg["content"],
-                        timestamp=msg["timestamp"],
-                        read=True,
-                        delivered_while_offline=msg["delivered_while_offline"]
-                    ))
-                
-                logging.info(f"User '{username}' retrieved {len(proto_messages)} undelivered messages")
-                return chat.MessageList(
-                    error=False,
-                    message=f"Retrieved {len(proto_messages)} undelivered messages",
-                    messages=proto_messages
-                )
 
+        with self.lock:  
+            if username not in self.active_users:  
+                logging.warning(f"Failed get_undelivered request from {client_address}: User not logged in")
+                return chat.MessageList(error=True, message="Not logged in")  
+            
+            # Get unread messages and mark them as read  
+            unread = [msg for msg in self.messages[username] if not msg["read"]]  
+            unread_sorted = sorted(unread, key=lambda x: x["timestamp"], reverse=True)[:count]  
+            
+            # Update read status in original message storage  
+            for msg in unread_sorted:  
+                    msg["read"] = True 
+                        
+            # Convert to proto messages  
+            proto_messages = [  
+                chat.Message(  
+                    id=m["id"],  
+                    username=m["from"],  
+                    to=username,  
+                    content=m["content"],  
+                    timestamp=m["timestamp"],  
+                    read=True,  
+                    delivered_while_offline=m["delivered_while_offline"]  
+                ) for m in unread_sorted  
+            ]  
+            
+            return chat.MessageList(  
+                error=False,  
+                messages=proto_messages  
+            )  
+    
     def SendDeleteMessages(self, request, context):
         """Deletes messages for a user.
         
