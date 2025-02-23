@@ -163,7 +163,6 @@ class ChatServer(rpc.ChatServerServicer):
                     # Mark user offline if no active streams  
                     if not self.active_streams.get(username):  
                         del self.active_users[username]  
-                        self.broadcast_user_list()  
 
     def SendCreateAccount(self, request, context):
         """Creates a new user account.
@@ -196,7 +195,6 @@ class ChatServer(rpc.ChatServerServicer):
                 self.users[username] = (self.hash_password(password), {})
                 self.messages[username] = []
                 logging.info(f"New account created: {username} from {client_address}")
-                self.broadcast_user_list()
                 return chat.Reply(error=False, message="Account created successfully")
 
     def SendLogin(self, request, context):
@@ -228,9 +226,6 @@ class ChatServer(rpc.ChatServerServicer):
                 unread_count = self.get_unread_count(username)
                 logging.info(f"User '{username}' logged in from {client_address}")
                 
-                # Broadcast updated user list
-                self.broadcast_user_list()
-                
                 # Include unread count in the reply message
                 reply_message = f"Login successful. You have {unread_count} unread messages."
                 return chat.Reply(error=False, message=reply_message)
@@ -254,7 +249,6 @@ class ChatServer(rpc.ChatServerServicer):
                     del self.active_streams[username]  
                 del self.active_users[username] 
                 logging.info(f"User '{username}' logged out from {client_address}")
-                self.broadcast_user_list()
                 return chat.Reply(error=False, message="Logged out successfully")
             else:
                 logging.warning(f"Failed logout attempt from {client_address}: User not logged in")
@@ -289,7 +283,6 @@ class ChatServer(rpc.ChatServerServicer):
                     del self.active_users[username]
                 
                 logging.info(f"Account deleted: {username} from {client_address}")
-                self.broadcast_user_list()
                 return chat.Reply(error=False, message="Account deleted")
 
     def SendMessage(self, request, context):
@@ -523,17 +516,6 @@ class ChatServer(rpc.ChatServerServicer):
                 message=f"Found {len(matches)} users",
                 users=matches
             )
-
-    def broadcast_user_list(self):
-        """Broadcasts the updated user list to all active clients through their streams.
-        
-        This is a helper method and not directly exposed as a gRPC method.
-        """
-        # This would normally be done through the ChatStream, but we'll just update
-        # a global user list for now. In a real implementation, we would use a 
-        # pub/sub system or similar to notify clients.
-        # Since this is called with the lock held, it's thread-safe.
-        pass
 
     def get_messages(self, username):
         """Retrieves read messages for a user.

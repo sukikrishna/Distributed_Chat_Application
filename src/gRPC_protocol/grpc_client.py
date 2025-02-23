@@ -512,8 +512,6 @@ class ChatClient:
                     # Also mark the user as inactive
                     if username in self.active_users:
                         del self.active_users[username]
-                        # Broadcast updated user list
-                        self.broadcast_user_list()
         
         except StopIteration:
             pass
