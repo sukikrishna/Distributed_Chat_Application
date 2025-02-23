@@ -252,18 +252,19 @@ class ChatClient:
         if not self.username:
             return
             
+        self.stream_active = True
         try:
-            # Start the message stream
-            stream_responses = self.stub.ChatStream(self.entry_request_iterator())
+            # Store the RPC context
+            stream_responses = self.stub.ChatStream(
+                self.entry_request_iterator()
+            )
             
             # Process incoming messages
             for message in stream_responses:
                 if not self.running:
                     break
-                    
-                # Handle the received message in the UI thread
                 self.root.after(0, self.handle_incoming_message, message)
-                
+                    
         except grpc.RpcError as e:
             if self.running:  # Only show errors if we're still supposed to be running
                 self.root.after(0, lambda: messagebox.showerror("Connection Error", f"Lost connection to server: {e}"))
@@ -657,6 +658,7 @@ class ChatClient:
             return
             
         try:
+            self.running = False
             request = chat.Logout(username=self.username)
             response = self.stub.SendLogout(request)
             

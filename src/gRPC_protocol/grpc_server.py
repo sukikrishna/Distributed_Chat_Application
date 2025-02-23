@@ -117,12 +117,18 @@ class ChatServer(rpc.ChatServerServicer):
             
             # Register this stream for the user
             with self.lock:
+                if username not in self.active_users:  # Check if still logged in
+                    context.cancel()
+                    return
                 self.active_streams.setdefault(username, []).append(context)  
             logging.info(f"ChatStream connected for {username}") 
                                 
             while True:  # Persistent connection loop  
                 time.sleep(0.1)  # Prevent CPU spin  
                 with self.lock:  
+                    if username not in self.active_users:
+                        context.cancel()
+                        break
                     # Get messages that haven't been notified OR read  
                     undelivered = [  
                         msg for msg in self.messages[username]  
@@ -145,6 +151,8 @@ class ChatServer(rpc.ChatServerServicer):
         except StopIteration:  
             logging.warning(f"Client {username} disconnected")  
         except Exception as e:  
+            if context.is_active():
+                context.cancel()
             logging.error(f"Stream error: {e}")  
         finally:  
             with self.lock:  
@@ -242,7 +250,9 @@ class ChatServer(rpc.ChatServerServicer):
         
         with self.lock:
             if username in self.active_users:
-                del self.active_users[username]
+                if username in self.active_streams:  
+                    del self.active_streams[username]  
+                del self.active_users[username] 
                 logging.info(f"User '{username}' logged out from {client_address}")
                 self.broadcast_user_list()
                 return chat.Reply(error=False, message="Logged out successfully")
@@ -426,10 +436,12 @@ class ChatServer(rpc.ChatServerServicer):
             unread = [msg for msg in self.messages[username] if not msg["read"]]  
             unread_sorted = sorted(unread, key=lambda x: x["timestamp"], reverse=True)[:count]  
             
-            # Update read status in original message storage  
+            # Finalize read status and clean flags  
             for msg in unread_sorted:  
-                    msg["read"] = True 
-                        
+                msg["read"] = True  
+                if "stream_notified" in msg:  
+                    del msg["stream_notified"]  # Clean notification flag  
+                                
             # Convert to proto messages  
             proto_messages = [  
                 chat.Message(  
