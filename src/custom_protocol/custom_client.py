@@ -12,7 +12,7 @@ from custom_protocol import CustomWireProtocol
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "../")))
 
 from config import Config
-from utils import MessageFrame
+from util import MessageFrame
 
 class ChatClient:
     """A GUI-based chat client using a custom wire protocol.

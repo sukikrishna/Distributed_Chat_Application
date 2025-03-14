@@ -15,7 +15,7 @@ from tkinter import ttk, messagebox
 
 # Import our local modules (now should resolve correctly)
 from config import Config
-from utils import MessageFrame
+from util import MessageFrame
 
 import chat_pb2 as chat
 import chat_pb2_grpc as rpc

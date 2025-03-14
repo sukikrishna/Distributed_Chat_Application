@@ -11,7 +11,7 @@ from tkinter import ttk, messagebox
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "../")))
 
 from config import Config
-from utils import MessageFrame
+from util import MessageFrame
 
 class ChatClient:
     """A GUI-based chat client for sending and receiving messages."""
