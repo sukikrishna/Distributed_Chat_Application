@@ -5,4 +5,9 @@ channels:
 dependencies:
   - python=3.9  # Pin to a stable version
   - tk  # Required for Tkinter GUI
+  - grpcio  # gRPC core library
+  - grpcio-tools  # Required to generate gRPC bindings
+  - protobuf  # Protocol Buffers for message serialization
   - pytest  # For unit testing
+  - pip  # Ensure pip is available for additional dependencies
+  - pip
