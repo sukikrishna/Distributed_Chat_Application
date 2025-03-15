@@ -1,0 +1,190 @@
+syntax = "proto3";
+
+package chat;
+
+// Chat service definition
+service ChatServer {
+  // Stream for receiving messages from server
+  rpc ChatStream(stream Id) returns (stream Message) {}
+  
+  // Authentication operations
+  rpc SendCreateAccount(CreateAccount) returns (Reply) {}
+  rpc SendLogin(Login) returns (Reply) {}
+  rpc SendLogout(Logout) returns (Reply) {}
+  rpc SendDeleteAccount(DeleteAccount) returns (Reply) {}
+  
+  // Message operations
+  rpc SendMessage(Message) returns (Reply) {}
+  rpc SendGetMessages(GetMessages) returns (MessageList) {}
+  rpc SendGetUndelivered(GetUndelivered) returns (MessageList) {}
+  rpc SendDeleteMessages(DeleteMessages) returns (Reply) {}
+  
+  // User operations
+  rpc SendListAccounts(ListAccounts) returns (UserList) {}
+}
+
+// New service for replica communication
+service ReplicaService {
+  // Leader election
+  rpc RequestVote(VoteRequest) returns (VoteResponse) {}
+  
+  // Log replication
+  rpc AppendEntries(AppendEntriesRequest) returns (AppendEntriesResponse) {}
+  
+  // Operation replication
+  rpc ReplicateOperation(ReplicateRequest) returns (ReplicateResponse) {}
+  
+  // Add new replicas
+  rpc AddReplica(AddReplicaRequest) returns (AddReplicaResponse) {}
+  
+  // State transfer for new replicas
+  rpc InitStateTransfer(StateTransferInit) returns (StateTransferResponse) {}
+  rpc TransferState(StateChunk) returns (StateTransferResponse) {}
+}
+
+// Client identification message
+message Id {
+  string username = 1;
+}
+
+// Basic reply message (success/error)
+message Reply {
+  bool error = 1;
+  string message = 2;
+}
+
+// User account messages
+message CreateAccount {
+  string username = 1;
+  string password = 2;
+}
+
+message Login {
+  string username = 1;
+  string password = 2;
+}
+
+message Logout {
+  string username = 1;
+}
+
+message DeleteAccount {
+  string username = 1;
+  string password = 2;
+}
+
+// Message handling messages
+message Message {
+  int32 id = 1;
+  string username = 2;     // Sender
+  string to = 3;           // Recipient
+  string content = 4;      // Message content
+  double timestamp = 5;    // Unix timestamp
+  bool read = 6;           // Read status
+  bool delivered_while_offline = 7;
+}
+
+message GetMessages {
+  string username = 1;
+  int32 count = 2;
+}
+
+message GetUndelivered {
+  string username = 1;
+  int32 count = 2;
+}
+
+message DeleteMessages {
+  string username = 1;
+  repeated int32 message_ids = 2;
+}
+
+message MessageList {
+  bool error = 1;
+  string message = 2;
+  repeated Message messages = 3;
+}
+
+// User listing messages
+message ListAccounts {
+  string username = 1;
+  string wildcard = 2;
+}
+
+message User {
+  string username = 1;
+  string status = 2;
+}
+
+message UserList {
+  bool error = 1;
+  string message = 2;
+  repeated User users = 3;
+}
+
+// New message types for replication
+
+// Vote request for leader election
+message VoteRequest {
+  int32 term = 1;
+  string candidate_id = 2;
+}
+
+// Vote response for leader election
+message VoteResponse {
+  int32 term = 1;
+  bool vote_granted = 2;
+}
+
+// Heartbeat/append entries request
+message AppendEntriesRequest {
+  int32 term = 1;
+  string leader_id = 2;
+}
+
+// Append entries response
+message AppendEntriesResponse {
+  int32 term = 1;
+  bool success = 2;
+}
+
+// Replicate operation request
+message ReplicateRequest {
+  int32 term = 1;
+  string leader_id = 2;
+  string operation_type = 3;
+  string operation_data = 4;
+}
+
+// Replicate operation response
+message ReplicateResponse {
+  int32 term = 1;
+  bool success = 2;
+}
+
+// Add replica request
+message AddReplicaRequest {
+  string address = 1;
+}
+
+// Add replica response
+message AddReplicaResponse {
+  bool success = 1;
+  string message = 2;
+}
+
+// State transfer initialization
+message StateTransferInit {
+  int32 chunk_count = 1;
+}
+
+// State chunk for transferring state
+message StateChunk {
+  int32 chunk_index = 1;
+  bytes data = 2;
+}
+
+// State transfer response
+message StateTransferResponse {
+  bool success = 1;
+}
