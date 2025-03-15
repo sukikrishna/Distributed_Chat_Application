@@ -1,0 +1,102 @@
+2025-03-15 14:56:15,350 - root - INFO - Server server1 state loaded successfully
+2025-03-15 14:56:15,363 - root - INFO - Connected to replica at 127.0.0.1:50052
+2025-03-15 14:56:15,365 - root - INFO - Connected to replica at 127.0.0.1:50053
+2025-03-15 14:56:15,366 - root - INFO - Server server1 started as REPLICA
+2025-03-15 14:56:15,374 - root - INFO - Server server1 started at 127.0.0.1:50051
+2025-03-15 14:56:15,375 - root - INFO - Role: REPLICA
+2025-03-15 14:56:15,378 - root - INFO - Connected to replicas: ['127.0.0.1:50052', '127.0.0.1:50053']
+2025-03-15 14:57:34,563 - root - INFO - Server server2 state loaded successfully
+2025-03-15 14:57:34,572 - root - INFO - Connected to replica at 127.0.0.1:50051
+2025-03-15 14:57:34,574 - root - INFO - Connected to replica at 127.0.0.1:50053
+2025-03-15 14:57:34,575 - root - INFO - Server server2 started as REPLICA
+2025-03-15 14:57:34,579 - root - INFO - Server server2 started at 127.0.0.1:50052
+2025-03-15 14:57:34,579 - root - INFO - Role: REPLICA
+2025-03-15 14:57:34,580 - root - INFO - Connected to replicas: ['127.0.0.1:50051', '127.0.0.1:50053']
+2025-03-15 14:57:54,014 - root - INFO - Server server2 state loaded successfully
+2025-03-15 14:57:54,018 - root - INFO - Connected to replica at 127.0.0.1:50051
+2025-03-15 14:57:54,019 - root - INFO - Connected to replica at 127.0.0.1:50053
+2025-03-15 14:57:54,020 - root - INFO - Server server2 started as REPLICA
+2025-03-15 14:57:54,023 - root - INFO - Server server2 started at 127.0.0.1:50052
+2025-03-15 14:57:54,026 - root - INFO - Role: REPLICA
+2025-03-15 14:57:54,026 - root - INFO - Connected to replicas: ['127.0.0.1:50051', '127.0.0.1:50053']
+2025-03-15 14:58:03,894 - root - INFO - Server server3 state loaded successfully
+2025-03-15 14:58:03,899 - root - INFO - Connected to replica at 127.0.0.1:50051
+2025-03-15 14:58:03,900 - root - INFO - Connected to replica at 127.0.0.1:50052
+2025-03-15 14:58:03,901 - root - INFO - Server server3 started as REPLICA
+2025-03-15 14:58:03,904 - root - INFO - Server server3 started at 127.0.0.1:50053
+2025-03-15 14:58:03,905 - root - INFO - Role: REPLICA
+2025-03-15 14:58:03,906 - root - INFO - Connected to replicas: ['127.0.0.1:50051', '127.0.0.1:50052']
+2025-03-15 15:02:43,219 - root - INFO - Server server1 state loaded successfully
+2025-03-15 15:02:43,224 - root - INFO - Connected to replica at 127.0.0.1:50052
+2025-03-15 15:02:43,226 - root - INFO - Connected to replica at 127.0.0.1:50053
+2025-03-15 15:02:43,231 - root - INFO - Server server1 started as MASTER
+2025-03-15 15:02:43,236 - root - INFO - Server server1 started at 127.0.0.1:50051
+2025-03-15 15:02:43,238 - root - INFO - Role: MASTER
+2025-03-15 15:02:43,238 - root - INFO - Connected to replicas: ['127.0.0.1:50052', '127.0.0.1:50053']
+2025-03-15 15:02:54,977 - root - INFO - Server server2 state loaded successfully
+2025-03-15 15:02:54,985 - root - INFO - Connected to replica at 127.0.0.1:50051
+2025-03-15 15:02:54,987 - root - INFO - Connected to replica at 127.0.0.1:50053
+2025-03-15 15:02:54,987 - root - INFO - Server server2 started as REPLICA
+2025-03-15 15:02:54,990 - root - INFO - Server server2 started at 127.0.0.1:50052
+2025-03-15 15:02:54,991 - root - INFO - Role: REPLICA
+2025-03-15 15:02:54,992 - root - INFO - Connected to replicas: ['127.0.0.1:50051', '127.0.0.1:50053']
+2025-03-15 15:02:58,422 - root - INFO - Server server3 state loaded successfully
+2025-03-15 15:02:58,427 - root - INFO - Connected to replica at 127.0.0.1:50051
+2025-03-15 15:02:58,428 - root - INFO - Connected to replica at 127.0.0.1:50052
+2025-03-15 15:02:58,428 - root - INFO - Server server3 started as REPLICA
+2025-03-15 15:02:58,432 - root - INFO - Server server3 started at 127.0.0.1:50053
+2025-03-15 15:02:58,432 - root - INFO - Role: REPLICA
+2025-03-15 15:02:58,433 - root - INFO - Connected to replicas: ['127.0.0.1:50051', '127.0.0.1:50052']
+2025-03-15 15:03:00,288 - root - WARNING - Failed to send heartbeat to 127.0.0.1:50052: <_InactiveRpcError of RPC that terminated with:
+	status = StatusCode.DEADLINE_EXCEEDED
+	details = "Deadline Exceeded"
+	debug_error_string = "UNKNOWN:Error received from peer  {created_time:"2025-03-15T15:03:00.283332186-04:00", grpc_status:4, grpc_message:"Deadline Exceeded"}"
+>
+2025-03-15 15:03:02,292 - root - WARNING - Failed to send heartbeat to 127.0.0.1:50053: <_InactiveRpcError of RPC that terminated with:
+	status = StatusCode.DEADLINE_EXCEEDED
+	details = "Deadline Exceeded"
+	debug_error_string = "UNKNOWN:Error received from peer  {created_time:"2025-03-15T15:03:02.291787744-04:00", grpc_status:4, grpc_message:"Deadline Exceeded"}"
+>
+2025-03-15 15:12:07,337 - root - INFO - Server server1 state loaded successfully
+2025-03-15 15:12:07,345 - root - INFO - Connected to replica at 127.0.0.1:50052
+2025-03-15 15:12:07,346 - root - INFO - Connected to replica at 127.0.0.1:50053
+2025-03-15 15:12:07,347 - root - INFO - Server server1 started as MASTER
+2025-03-15 15:12:07,349 - root - INFO - Server server1 started at 127.0.0.1:50051
+2025-03-15 15:12:07,350 - root - INFO - Role: MASTER
+2025-03-15 15:12:07,351 - root - INFO - Connected to replicas: ['127.0.0.1:50052', '127.0.0.1:50053']
+2025-03-15 15:12:09,351 - root - WARNING - Failed to send heartbeat to 127.0.0.1:50052: <_InactiveRpcError of RPC that terminated with:
+	status = StatusCode.DEADLINE_EXCEEDED
+	details = "Deadline Exceeded"
+	debug_error_string = "UNKNOWN:Error received from peer  {created_time:"2025-03-15T15:12:09.349301766-04:00", grpc_status:4, grpc_message:"Deadline Exceeded"}"
+>
+2025-03-15 15:12:11,355 - root - WARNING - Failed to send heartbeat to 127.0.0.1:50053: <_InactiveRpcError of RPC that terminated with:
+	status = StatusCode.DEADLINE_EXCEEDED
+	details = "Deadline Exceeded"
+	debug_error_string = "UNKNOWN:Error received from peer  {created_time:"2025-03-15T15:12:11.354911925-04:00", grpc_status:4, grpc_message:"Deadline Exceeded"}"
+>
+2025-03-15 15:12:47,718 - root - INFO - Server server2 state loaded successfully
+2025-03-15 15:12:47,724 - root - INFO - Connected to replica at 127.0.0.1:50051
+2025-03-15 15:12:47,725 - root - INFO - Connected to replica at 127.0.0.1:50053
+2025-03-15 15:12:47,726 - root - INFO - Server server2 started as REPLICA
+2025-03-15 15:12:47,729 - root - INFO - Server server2 started at 127.0.0.1:50052
+2025-03-15 15:12:47,730 - root - INFO - Role: REPLICA
+2025-03-15 15:12:47,730 - root - INFO - Connected to replicas: ['127.0.0.1:50051', '127.0.0.1:50053']
+2025-03-15 15:12:49,868 - root - INFO - Server server3 state loaded successfully
+2025-03-15 15:12:49,873 - root - INFO - Connected to replica at 127.0.0.1:50051
+2025-03-15 15:12:49,875 - root - INFO - Connected to replica at 127.0.0.1:50052
+2025-03-15 15:12:49,876 - root - INFO - Server server3 started as REPLICA
+2025-03-15 15:12:49,880 - root - INFO - Server server3 started at 127.0.0.1:50053
+2025-03-15 15:12:49,880 - root - INFO - Role: REPLICA
+2025-03-15 15:12:49,881 - root - INFO - Connected to replicas: ['127.0.0.1:50051', '127.0.0.1:50052']
+2025-03-15 15:13:03,881 - root - INFO - Server server1 state loaded successfully
+2025-03-15 15:13:03,885 - root - INFO - Connected to replica at 127.0.0.1:50052
+2025-03-15 15:13:03,886 - root - INFO - Connected to replica at 127.0.0.1:50053
+2025-03-15 15:13:03,888 - root - INFO - Server server1 started as MASTER
+2025-03-15 15:13:03,889 - root - INFO - Server server1 started at 127.0.0.1:50051
+2025-03-15 15:13:03,890 - root - INFO - Role: MASTER
+2025-03-15 15:13:03,891 - root - INFO - Connected to replicas: ['127.0.0.1:50052', '127.0.0.1:50053']
+2025-03-15 15:13:05,892 - root - WARNING - Failed to send heartbeat to 127.0.0.1:50052: <_InactiveRpcError of RPC that terminated with:
+	status = StatusCode.DEADLINE_EXCEEDED
+	details = "Deadline Exceeded"
+	debug_error_string = "UNKNOWN:Error received from peer  {grpc_message:"Deadline Exceeded", grpc_status:4, created_time:"2025-03-15T15:13:05.890596701-04:00"}"
+>

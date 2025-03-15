@@ -1,0 +1,22 @@
+{
+    "servers": [
+      {
+        "id": "server1",
+        "host": "127.0.0.1",
+        "port": 50051,
+        "is_master": true
+      },
+      {
+        "id": "server2",
+        "host": "127.0.0.1",
+        "port": 50052,
+        "is_master": false
+      },
+      {
+        "id": "server3",
+        "host": "127.0.0.1",
+        "port": 50053,
+        "is_master": false
+      }
+    ]
+  }

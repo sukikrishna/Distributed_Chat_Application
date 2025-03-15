@@ -1,0 +1,133 @@
+syntax = "proto3";
+
+package chat;
+
+// Extended chat service definition for fault-tolerant operation
+service ChatServer {
+  // Original chat service RPCs
+  rpc ChatStream(stream Id) returns (stream Message) {}
+  rpc SendCreateAccount(CreateAccount) returns (Reply) {}
+  rpc SendLogin(Login) returns (Reply) {}
+  rpc SendLogout(Logout) returns (Reply) {}
+  rpc SendDeleteAccount(DeleteAccount) returns (Reply) {}
+  rpc SendMessage(Message) returns (Reply) {}
+  rpc SendGetMessages(GetMessages) returns (MessageList) {}
+  rpc SendGetUndelivered(GetUndelivered) returns (MessageList) {}
+  rpc SendDeleteMessages(DeleteMessages) returns (Reply) {}
+  rpc SendListAccounts(ListAccounts) returns (UserList) {}
+  
+  // New replication and fault tolerance RPCs
+  rpc SendHeartbeat(Heartbeat) returns (Reply) {}
+  rpc SendSyncState(SyncState) returns (Reply) {}
+  rpc JoinCluster(JoinRequest) returns (Reply) {}
+  rpc UpdateCluster(ClusterUpdate) returns (Reply) {}
+}
+
+// Client identification message
+message Id {
+  string username = 1;
+}
+
+// Basic reply message (success/error)
+message Reply {
+  bool error = 1;
+  string message = 2;
+}
+
+// User account messages
+message CreateAccount {
+  string username = 1;
+  string password = 2;
+}
+
+message Login {
+  string username = 1;
+  string password = 2;
+}
+
+message Logout {
+  string username = 1;
+}
+
+message DeleteAccount {
+  string username = 1;
+  string password = 2;
+}
+
+// Message handling messages
+message Message {
+  int32 id = 1;
+  string username = 2;     // Sender
+  string to = 3;           // Recipient
+  string content = 4;      // Message content
+  double timestamp = 5;    // Unix timestamp
+  bool read = 6;           // Read status
+  bool delivered_while_offline = 7;
+}
+
+message GetMessages {
+  string username = 1;
+  int32 count = 2;
+}
+
+message GetUndelivered {
+  string username = 1;
+  int32 count = 2;
+}
+
+message DeleteMessages {
+  string username = 1;
+  repeated int32 message_ids = 2;
+}
+
+message MessageList {
+  bool error = 1;
+  string message = 2;
+  repeated Message messages = 3;
+}
+
+// User listing messages
+message ListAccounts {
+  string username = 1;
+  string wildcard = 2;
+}
+
+message User {
+  string username = 1;
+  string status = 2;
+}
+
+message UserList {
+  bool error = 1;
+  string message = 2;
+  repeated User users = 3;
+}
+
+// New replication messages
+message Heartbeat {
+  string server_id = 1;
+  double timestamp = 2;
+  bool is_master = 3;
+  bool promote_to_master = 4;  // Used to tell a replica to become master
+  int32 message_id_counter = 5; // For state synchronization
+}
+
+message SyncState {
+  string server_id = 1;
+  bool from_master = 2;
+  bytes users_data = 3;      // Serialized users dictionary
+  bytes messages_data = 4;   // Serialized messages dictionary
+  int32 message_id_counter = 5;
+  double timestamp = 6;
+}
+
+// Message for a server to join the cluster
+message JoinRequest {
+  string server_id = 1;   // ID of the joining server
+  string address = 2;     // Address (host:port) of the joining server
+}
+
+message ClusterUpdate {
+  string server_id = 1;   // ID of the updating server (master)
+  repeated string replica_servers = 2;
+}
