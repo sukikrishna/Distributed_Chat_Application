@@ -1,0 +1,28 @@
+/home/sukikrishna/.local/lib/python3.10/site-packages/google/protobuf/runtime_version.py:98: UserWarning: Protobuf gencode version 5.27.2 is exactly one major version older than the runtime version 6.30.1 at src/fault_tolerant/chat_extended.proto. Please update the gencode to avoid compatibility violations in the next runtime release.
+  warnings.warn(
+2025-03-15 15:50:02,972 - root - INFO - Server server3 state loaded successfully
+2025-03-15 15:50:02,982 - root - INFO - Connected to replica at 127.0.0.1:50051
+2025-03-15 15:50:02,983 - root - INFO - Connected to replica at 127.0.0.1:50052
+2025-03-15 15:50:02,985 - root - INFO - Server server3 started as REPLICA
+2025-03-15 15:50:02,989 - root - INFO - Server server3 started at 127.0.0.1:50053
+2025-03-15 15:50:02,994 - root - INFO - Role: REPLICA
+2025-03-15 15:50:02,995 - root - INFO - Connected to replicas: ['127.0.0.1:50051', '127.0.0.1:50052']
+/home/sukikrishna/.local/lib/python3.10/site-packages/google/protobuf/runtime_version.py:98: UserWarning: Protobuf gencode version 5.27.2 is exactly one major version older than the runtime version 6.30.1 at chat_extended.proto. Please update the gencode to avoid compatibility violations in the next runtime release.
+  warnings.warn(
+Traceback (most recent call last):
+  File "/mnt/c/Users/Sukanya Krishna/Distributed_Chat_Application/src/fault_tolerant/server_launcher.py", line 23, in <module>
+    from replicated_server import ReplicatedChatServer
+  File "/mnt/c/Users/Sukanya Krishna/Distributed_Chat_Application/src/fault_tolerant/replicated_server.py", line 40, in <module>
+    import chat_extended_pb2_grpc as rpc
+  File "/mnt/c/Users/Sukanya Krishna/Distributed_Chat_Application/src/fault_tolerant/chat_extended_pb2_grpc.py", line 6, in <module>
+    from . import chat_extended_pb2 as chat__extended__pb2
+ImportError: attempted relative import with no known parent package
+/home/sukikrishna/.local/lib/python3.10/site-packages/google/protobuf/runtime_version.py:98: UserWarning: Protobuf gencode version 5.27.2 is exactly one major version older than the runtime version 6.30.1 at chat_extended.proto. Please update the gencode to avoid compatibility violations in the next runtime release.
+  warnings.warn(
+2025-03-15 16:06:37,299 - root - INFO - Server server3 state loaded successfully
+2025-03-15 16:06:37,304 - root - INFO - Connected to replica at 127.0.0.1:50051
+2025-03-15 16:06:37,304 - root - INFO - Connected to replica at 127.0.0.1:50052
+2025-03-15 16:06:37,305 - root - INFO - Server server3 started as REPLICA
+2025-03-15 16:06:37,307 - root - INFO - Server server3 started at 127.0.0.1:50053
+2025-03-15 16:06:37,308 - root - INFO - Role: REPLICA
+2025-03-15 16:06:37,309 - root - INFO - Connected to replicas: ['127.0.0.1:50051', '127.0.0.1:50052']

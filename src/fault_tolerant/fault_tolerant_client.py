@@ -17,29 +17,27 @@ from tkinter import ttk, messagebox
 # Add the parent directory to sys.path to ensure we find our local modules
 current_dir = os.path.dirname(os.path.abspath(__file__))
 parent_dir = os.path.dirname(current_dir)
-sys.path.insert(0, parent_dir)
-sys.path.insert(0, os.path.dirname(parent_dir))  # For config
+root_dir = os.path.dirname(parent_dir)
+sys.path.insert(0, root_dir)  # Add project root to path
 
 # Import our local modules
-from config import Config
-from util import MessageFrame
+from src.config import Config
+from src.util import MessageFrame
 
-# Import gRPC modules
-# sys.path.append(os.path.join(parent_dir, "gRPC_protocol"))
-# import chat_pb2 as chat
-# import chat_pb2_grpc as rpc
-
-sys.path.append(os.path.join(current_dir))
-import chat_extended_pb2 as chat
+# Import gRPC modules directly from the current directory
+sys.path.append(current_dir)
+from chat_extended_pb2 import *
 import chat_extended_pb2_grpc as rpc
 
-
 # Configure logging
+log_dir = os.path.join(root_dir, "logs")
+os.makedirs(log_dir, exist_ok=True)
+
 logging.basicConfig(
     level=logging.INFO,
     format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
     handlers=[
-        logging.FileHandler(os.path.join(os.path.dirname(parent_dir), "logs", "client.log")),
+        logging.FileHandler(os.path.join(log_dir, "client.log")),
         logging.StreamHandler()
     ]
 )
@@ -83,6 +81,8 @@ class FaultTolerantChatClient:
         else:
             # Default to localhost with different ports
             self.server_list = ["127.0.0.1:50051", "127.0.0.1:50052", "127.0.0.1:50053"]
+        
+        logging.info(f"Using server list: {self.server_list}")
         
         self.current_server_index = 0
         self.retries = 3
@@ -383,7 +383,7 @@ class FaultTolerantChatClient:
         """
         self.stream_thread_stop = False
         while self.running and self.username and not self.stream_thread_stop:
-            yield chat.Id(username=self.username)
+            yield Id(username=self.username)
             time.sleep(0.5)  # Throttle rate of messages
 
     def _start_stream(self):
@@ -441,7 +441,7 @@ class FaultTolerantChatClient:
             return
         
         try:
-            request = chat.CreateAccount(username=username, password=password)
+            request = CreateAccount(username=username, password=password)
             response = self.stub.SendCreateAccount(request)
             
             if response.error:
@@ -465,7 +465,7 @@ class FaultTolerantChatClient:
             return
         
         try:
-            request = chat.Login(username=username, password=password)
+            request = Login(username=username, password=password)
             response = self.stub.SendLogin(request)
             
             if response.error:
@@ -506,17 +506,17 @@ class FaultTolerantChatClient:
             return
             
         recipient = self.recipient_var.get()
-        message = self.message_text.get("1.0", tk.END).strip()
+        message_content = self.message_text.get("1.0", tk.END).strip()
         
-        if not recipient or not message:
+        if not recipient or not message_content:
             messagebox.showwarning("Warning", "Please enter recipient and message")
             return
         
         try:    
-            request = chat.Message(
+            request = Message(
                 username=self.username,
                 to=recipient,
-                content=message
+                content=message_content
             )
             response = self.stub.SendMessage(request)
             
@@ -540,7 +540,7 @@ class FaultTolerantChatClient:
         """
         if messagebox.askyesno("Confirm", "Delete this message?"):
             try:
-                request = chat.DeleteMessages(username=self.username, message_ids=[msg_id])
+                request = DeleteMessages(username=self.username, message_ids=[msg_id])
                 response = self.stub.SendDeleteMessages(request)
                 
                 if response.error:
@@ -568,7 +568,7 @@ class FaultTolerantChatClient:
         if selected_ids:
             if messagebox.askyesno("Confirm", f"Delete {len(selected_ids)} selected messages?"):
                 try:
-                    request = chat.DeleteMessages(username=self.username, message_ids=selected_ids)
+                    request = DeleteMessages(username=self.username, message_ids=selected_ids)
                     response = self.stub.SendDeleteMessages(request)
                     
                     if response.error:
@@ -597,7 +597,7 @@ class FaultTolerantChatClient:
             count = self.config.get("message_fetch_limit", 5)  
                 
         try:  
-            request = chat.GetMessages(username=self.username, count=count)  
+            request = GetMessages(username=self.username, count=count)  
             response = self.stub.SendGetMessages(request)  
             
             if response.error:  
@@ -639,7 +639,7 @@ class FaultTolerantChatClient:
             count = self.config.get("message_fetch_limit", 10)  
                 
         try:  
-            request = chat.GetUndelivered(username=self.username, count=count)  
+            request = GetUndelivered(username=self.username, count=count)  
             response = self.stub.SendGetUndelivered(request)  
             
             if response.error:  
@@ -690,7 +690,7 @@ class FaultTolerantChatClient:
             pattern = pattern + "*"
             
         try:
-            request = chat.ListAccounts(username=self.username or "", wildcard=pattern)
+            request = ListAccounts(username=self.username or "", wildcard=pattern)
             response = self.stub.SendListAccounts(request)
             
             self.accounts_list.delete(*self.accounts_list.get_children())
@@ -725,7 +725,7 @@ class FaultTolerantChatClient:
         if messagebox.askyesno("Confirm", 
                               "Delete your account? This cannot be undone."):
             try:
-                request = chat.DeleteAccount(username=self.username, password=password)
+                request = DeleteAccount(username=self.username, password=password)
                 response = self.stub.SendDeleteAccount(request)
                 
                 if response.error:
@@ -751,7 +751,7 @@ class FaultTolerantChatClient:
             
         try:
             self.stream_thread_stop = True  # Signal stream thread to stop
-            request = chat.Logout(username=self.username)
+            request = Logout(username=self.username)
             response = self.stub.SendLogout(request)
             
             if response.error:

@@ -20,12 +20,6 @@ sys.path.insert(0, parent_dir)
 sys.path.insert(0, os.path.dirname(parent_dir))  # For config
 
 # Import our modules
-# from fault_tolerant.replicated_server import ReplicatedChatServer
-# sys.path.append(os.path.join(parent_dir, "gRPC_protocol"))
-# import chat_pb2 as chat
-# import chat_pb2_grpc as rpc
-
-# Import our modules
 from replicated_server import ReplicatedChatServer
 import chat_extended_pb2 as chat
 import chat_extended_pb2_grpc as rpc
