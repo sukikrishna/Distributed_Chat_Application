@@ -83,6 +83,10 @@ class ReplicatedChatServer:
         
         # Start replication
         self.replication.start()
+
+        # Start heartbeat monitor if this is not the leader
+        if not self.config.is_leader():
+            self.replication.start_heartbeat_monitor()
     
     def _get_max_message_id(self):
         """Get the maximum message ID from the database.
@@ -718,9 +722,8 @@ class ReplicatedChatServer:
                 self.replication._send_message(client_socket, ReplicationProtocol.CMD_SYNC, {"success": True})
             
             elif cmd == ReplicationProtocol.CMD_HEARTBEAT:
-                # Update leader status
-                if not self.config.is_leader():
-                    self.logger.info(f"Received heartbeat from leader {payload['leader_id']}")
+                # Update heartbeat timestamp
+                self.replication.handle_heartbeat(payload)  # Track heartbeat time
                 
                 # Send success response
                 self.replication._send_message(client_socket, ReplicationProtocol.CMD_HEARTBEAT, {"success": True})
@@ -916,7 +919,7 @@ class ReplicatedChatServer:
         """Handle a state transfer request from another server.
         
         Args:
-            client_socket (socket.socket): Socket connection to the requesting server
+            client_socket (socket.socket): Socket connection to the requester
             address (tuple): Address of the requesting server
         """
         try:
@@ -948,36 +951,21 @@ class ReplicatedChatServer:
             # Parse state transfer request
             try:
                 request = json.loads(payload_data.decode('utf-8'))
-                
                 server_id = request.get("server_id")
                 timestamp = request.get("timestamp")
-                
                 self.logger.info(f"Received state transfer request from server {server_id}")
                 
-                # Get full server state - keep it minimal for testing
+                # Build full state including configuration
                 full_state = {
-                    "users": [],
-                    "messages": [],
-                    "active_users": [],
-                    "operations": []
+                    "users": self.persistence.get_all_users(),
+                    "messages": [],  # (Populate with actual messages if needed)
+                    "active_users": self.persistence.get_active_users(),
+                    "operations": [],  # (Populate with pending operations if needed)
+                    "servers": self.config.config["servers"]  # Include full server configuration!
                 }
                 
-                # Create a small test message to confirm protocol works
-                test_message = {
-                    "id": 1,
-                    "from": "system",
-                    "to": f"server_{server_id}",
-                    "content": "Welcome to the cluster",
-                    "timestamp": int(time.time()),
-                    "read": False,
-                    "delivered_while_offline": False
-                }
-                full_state["messages"].append(test_message)
-                
-                # Send state back to requester - keep it simple
+                # Serialize and send full state
                 serialized_state = json.dumps(full_state).encode('utf-8')
-                
-                # Simple protocol: send length as 4 bytes, then data
                 length_bytes = struct.pack('!I', len(serialized_state))
                 client_socket.sendall(length_bytes)
                 client_socket.sendall(serialized_state)
@@ -990,7 +978,6 @@ class ReplicatedChatServer:
         except Exception as e:
             self.logger.error(f"Error handling state transfer request: {e}")
         finally:
-            # Always close the connection when done
             try:
                 client_socket.close()
             except:
@@ -1011,15 +998,32 @@ class ReplicatedChatServer:
             # Give servers time to start up before leader election
             time.sleep(2)
             
-            # Check if we're the leader according to config
             if self.config.config["leader_id"] == self.config.server_id:
-                self.config.leader = True
-                self.logger.info(f"This server ({self.config.server_id}) is the designated leader")
-            elif not self.config.is_leader():
+                # Check if any other servers are alive before assuming leadership
+                other_servers = [s for s in self.config.config["servers"] if s["id"] != self.config.server_id]
+                connected_to_other = False
+
+                for s in other_servers:
+                    try:
+                        sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+                        sock.settimeout(2)
+                        sock.connect((s["host"], s["port"]))
+                        sock.close()
+                        connected_to_other = True
+                        self.logger.info(f"Another server (ID {s['id']}) is alive — will not assume leadership yet.")
+                        break
+                    except:
+                        continue
+
+                if connected_to_other:
+                    self.logger.info("Waiting for heartbeat or leader election...")
+                else:
+                    self.config.leader = True
+                    self.logger.info(f"This server ({self.config.server_id}) is the designated leader")
+            else:
                 # Try to contact the current leader
                 leader_id = self.config.config["leader_id"]
-                leader_info = next((s for s in self.config.config["servers"] 
-                                  if s["id"] == leader_id), None)
+                leader_info = next((s for s in self.config.config["servers"] if s["id"] == leader_id), None)
                 
                 if leader_info:
                     try:

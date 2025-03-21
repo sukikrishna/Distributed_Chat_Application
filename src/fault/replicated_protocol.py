@@ -41,7 +41,8 @@ class ReplicationProtocol:
         self.sync_queue = Queue()  # Queue for operations to be synchronized
         self.is_running = False
         self.logger = logging.getLogger('replication')
-        
+        self.last_heartbeat_lock = threading.Lock()
+        self.last_heartbeat = time.time() 
         # Set up logging
         handler = logging.FileHandler(f'replication_{config.server_id}.log')
         formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
@@ -234,33 +235,51 @@ class ReplicationProtocol:
     def _heartbeat_thread(self):
         """Background thread for sending heartbeats to followers."""
         self.logger.info("Starting heartbeat thread")
+        # Dictionary to track consecutive heartbeat failures per server_id
+        heartbeat_failures = {}
         
         while self.is_running and self.config.is_leader():
-            try:
-                # Send heartbeat to all followers
-                for server in self.config.config["servers"]:
-                    if server["id"] != self.config.server_id:
-                        try:
-                            sock = self._get_server_socket(server["id"])
-                            if sock:
-                                payload = {
-                                    "leader_id": self.config.server_id,
-                                    "timestamp": time.time()
-                                }
-                                if not self._send_message(sock, self.CMD_HEARTBEAT, payload):
-                                    # Connection failed, remove from active sockets
-                                    with self.lock:
-                                        if server["id"] in self.server_sockets:
-                                            del self.server_sockets[server["id"]]
-                            # Don't log connection errors during startup phase
-                        except Exception:
-                            pass  # Silently ignore failures to connect during startup
+            for server in self.config.config["servers"]:
+                if server["id"] == self.config.server_id:
+                    continue  # Skip self
                 
-                # Sleep for heartbeat interval
-                time.sleep(1)  # 1 second heartbeat interval
-            except Exception as e:
-                self.logger.error(f"Error in heartbeat thread: {e}")
-    
+                server_id = server["id"]
+                try:
+                    # Always create a fresh connection for each heartbeat
+                    sock = self._connect_to_server(server["host"], server["port"])
+                    if sock:
+                        payload = {
+                            "leader_id": self.config.server_id,
+                            "timestamp": time.time()
+                        }
+                        if self._send_message(sock, self.CMD_HEARTBEAT, payload):
+                            self.logger.debug(f"Heartbeat sent to Server {server_id}")
+                            heartbeat_failures[server_id] = 0  # Reset failure count on success
+                        else:
+                            self.logger.warning(f"Failed to send heartbeat to Server {server_id}")
+                            heartbeat_failures[server_id] = heartbeat_failures.get(server_id, 0) + 1
+                        sock.close()
+                    else:
+                        self.logger.warning(f"Could not connect to Server {server_id} for heartbeat")
+                        heartbeat_failures[server_id] = heartbeat_failures.get(server_id, 0) + 1
+                except Exception as e:
+                    self.logger.error(f"Error sending heartbeat to Server {server_id}: {e}")
+                    heartbeat_failures[server_id] = heartbeat_failures.get(server_id, 0) + 1
+            
+            # Check if any server has failed to respond for 3 consecutive heartbeats
+            for server in list(self.config.config["servers"]):
+                sid = server["id"]
+                if sid == self.config.server_id:
+                    continue
+                if heartbeat_failures.get(sid, 0) >= 3:
+                    self.logger.warning(f"Removing server {sid} from configuration due to repeated heartbeat failures")
+                    self.config.remove_server(sid)
+                    # Remove from the failure tracker as well
+                    heartbeat_failures.pop(sid, None)
+            
+            time.sleep(1)  # Heartbeat interval
+
+
     def sync_operation(self, operation):
         """Synchronize an operation with all followers.
         
@@ -289,68 +308,85 @@ class ReplicationProtocol:
         """Initiate leader election if the current leader is unresponsive."""
         self.logger.info("Initiating leader election")
         
-        # Implement a simplified leader election based on server ID
-        # In a real system, you would use a consensus algorithm like Raft
-        
-        # Get all server IDs
+        # Gather all server IDs from the current configuration.
         server_ids = [s["id"] for s in self.config.config["servers"]]
-        
         if not server_ids:
             self.logger.error("No servers in configuration")
             return
-            
-        # Find highest ID server that's not the current leader
-        current_leader_id = self.config.config["leader_id"]
+
+        # According to our rule, the server with the highest ID should become leader.
         highest_id = max(server_ids)
         
-        # If this server has the highest ID
-        if self.server_id == highest_id:
-            if not self.config.is_leader():
-                self.logger.info(f"Server {self.server_id} becoming leader")
-                self.config.promote_to_leader()
-                
-                # Start leader threads
-                self.replication.start()
-                
-                # Inform all followers
-                for server in self.config.config["servers"]:
-                    if server["id"] != self.server_id:
-                        try:
-                            sock = self.replication._get_server_socket(server["id"])
-                            if sock:
-                                payload = {
-                                    "new_leader_id": self.server_id,
-                                    "timestamp": time.time()
-                                }
-                                self.replication._send_message(sock, 
-                                                            ReplicationProtocol.CMD_LEADER_ELECTION, 
-                                                            payload)
-                        except Exception as e:
-                            self.logger.error(f"Error notifying server {server['id']}: {e}")
-        else:
-            # If not highest ID, try to notify the server with the highest ID
-            try:
-                highest_server = next((s for s in self.config.config["servers"] if s["id"] == highest_id), None)
-                if highest_server:
+        if self.config.server_id < highest_id:
+            # This server is not the highest.
+            # It should try to contact the highest-id server (its candidate for leader)
+            highest_server = next((s for s in self.config.config["servers"] if s["id"] == highest_id), None)
+            if highest_server:
+                try:
                     sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
                     sock.settimeout(3)
                     sock.connect((highest_server["host"], highest_server["port"]))
-                    
                     payload = {
-                        "proposer_id": self.server_id,
+                        "proposer_id": self.config.server_id,
                         "timestamp": time.time()
                     }
-                    
-                    # Serialize and send message
                     serialized = json.dumps(payload).encode('utf-8')
-                    message = struct.pack('!BBHI', 1, 0, ReplicationProtocol.CMD_LEADER_ELECTION, 
-                                        len(serialized) + 8) + serialized
+                    message = struct.pack('!BBHI', 1, 0, self.CMD_LEADER_ELECTION, len(serialized) + 8) + serialized
                     sock.sendall(message)
                     sock.close()
-            except Exception as e:
-                self.logger.error(f"Failed to contact potential leader: {e}")
-                
+                    self.logger.info(f"Not leader (ID {self.config.server_id}); contacted candidate leader {highest_id}")
+                except Exception as e:
+                    self.logger.error(f"Failed to contact potential leader {highest_id}: {e}")
+            else:
+                self.logger.error("Highest server not found in configuration")
+        else:
+            # This server has the highest ID and should become leader.
+            if not self.config.is_leader():
+                self.logger.info(f"Server {self.config.server_id} becoming leader")
+                self.config.promote_to_leader()
+                # Start leader threads (sync and heartbeat)
+                self.start()
+                # Inform all other servers of the new leadership.
+                for server in self.config.config["servers"]:
+                    if server["id"] != self.config.server_id:
+                        try:
+                            # Create a fresh connection to send the election announcement.
+                            sock = self._connect_to_server(server["host"], server["port"])
+                            if sock:
+                                payload = {
+                                    "new_leader_id": self.config.server_id,
+                                    "timestamp": time.time()
+                                }
+                                self._send_message(sock, self.CMD_LEADER_ELECTION, payload)
+                                sock.close()
+                                self.logger.info(f"Informed Server {server['id']} of new leader {self.config.server_id}")
+                        except Exception as e:
+                            self.logger.error(f"Error notifying server {server['id']}: {e}")
+
     
+    def start_heartbeat_monitor(self):
+        """Start monitoring heartbeats from the leader."""
+        def delayed_start():
+            time.sleep(2)  # Give time for state transfer + socket init
+            self._monitor_heartbeat()
+
+        threading.Thread(target=delayed_start, daemon=True).start()
+    
+    def _monitor_heartbeat(self):
+        while self.is_running and not self.config.is_leader():
+            with self.last_heartbeat_lock:
+                time_since = time.time() - self.last_heartbeat
+            if time_since > 5:
+                self.logger.warning("No heartbeat received in 5 seconds — initiating leader election")
+                self.initiate_leader_election()
+                break
+            time.sleep(1)
+
+    def handle_heartbeat(self, payload):
+        """Update timestamp for received heartbeat."""
+        with self.last_heartbeat_lock:
+            self.last_heartbeat = time.time()
+
     def handle_leader_election(self, client_socket):
         """Handle a leader election message.
         
