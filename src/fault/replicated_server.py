@@ -490,7 +490,7 @@ class ReplicatedChatServer:
         count = struct.unpack('!H', payload[:2])[0] if payload else 50
         
         # Get messages from database
-        messages = self.persistence.get_messages(current_user, unread_only=False, limit=count)
+        messages = self.persistence.get_messages(current_user, unread_only=False)
         
         # Construct response payload
         response_parts = []

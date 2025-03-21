@@ -281,15 +281,10 @@ class PersistenceManager:
                 query = """
                 SELECT id, from_user, to_user, content, timestamp, read, delivered_while_offline
                 FROM messages
-                WHERE to_user = ?
+                WHERE to_user = ? AND read = ?
+                ORDER BY timestamp DESC
                 """
-                
-                params = [username]
-                
-                if unread_only:
-                    query += " AND read = 0"
-                
-                query += " ORDER BY timestamp DESC"
+                params = [username, 0 if unread_only else 1]
                 
                 if limit:
                     query += " LIMIT ?"
