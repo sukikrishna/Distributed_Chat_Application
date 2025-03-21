@@ -819,6 +819,178 @@ class ReplicatedChatServer:
             self.persistence.delete_user(username)
             self.logger.info(f"Replicated: Deleted account for {username}")
     
+    def handle_state_transfer_request(self, client_socket, address):
+        """Handle a state transfer request from another server.
+        
+        Args:
+            client_socket (socket.socket): Socket connection to the requesting server
+            address (tuple): Address of the requesting server
+        """
+        try:
+            # Read the state transfer request header
+            header = client_socket.recv(8)
+            if len(header) < 8:
+                self.logger.error("Incomplete header in state transfer request")
+                return
+                
+            _, _, cmd, total_length = struct.unpack('!BBHI', header)
+            
+            if cmd != 104:  # Not a STATE_TRANSFER command
+                self.logger.error(f"Unexpected command in state transfer request: {cmd}")
+                return
+                
+            # Read payload
+            payload_length = total_length - 8
+            payload_data = b''
+            bytes_received = 0
+            
+            while bytes_received < payload_length:
+                chunk = client_socket.recv(min(4096, payload_length - bytes_received))
+                if not chunk:
+                    self.logger.error("Connection closed while receiving state transfer request")
+                    return
+                payload_data += chunk
+                bytes_received += len(chunk)
+                
+            # Parse state transfer request
+            try:
+                request = json.loads(payload_data.decode('utf-8'))
+                
+                server_id = request.get("server_id")
+                timestamp = request.get("timestamp")
+                
+                self.logger.info(f"Received state transfer request from server {server_id}")
+                
+                # Get full server state
+                full_state = self.persistence.get_full_state()
+                
+                # Send state back to requester
+                serialized_state = json.dumps(full_state).encode('utf-8')
+                message = struct.pack('!BBHI', 1, 0, 104, len(serialized_state) + 8) + serialized_state
+                
+                # Send in chunks to avoid buffer issues with large states
+                chunk_size = 8192
+                for i in range(0, len(message), chunk_size):
+                    chunk = message[i:i+chunk_size]
+                    client_socket.sendall(chunk)
+                    
+                self.logger.info(f"State transfer to server {server_id} completed")
+                
+            except json.JSONDecodeError:
+                self.logger.error("Invalid JSON in state transfer request")
+                
+        except Exception as e:
+            self.logger.error(f"Error handling state transfer request: {e}")
+        finally:
+            # Always close the connection when done
+            try:
+                client_socket.close()
+            except:
+                pass
+
+    # Update the start method's connection handling block in replicated_server.py
+    # Replace the existing code that handles incoming connections
+    def start(self):
+        """Start the server."""
+        try:
+            self.server = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+            self.server.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+            self.server.settimeout(1)  # 1 second timeout for accepting connections
+            self.server.bind((self.host, self.port))
+            self.server.listen(5)
+            
+            self.running = True
+            self.logger.info(f"Server started on {self.host}:{self.port}")
+            
+            # Give servers time to start up before leader election
+            time.sleep(2)
+            
+            # Check if we're the leader according to config
+            if self.config.config["leader_id"] == self.config.server_id:
+                self.config.leader = True
+                self.logger.info(f"This server ({self.config.server_id}) is the designated leader")
+            elif not self.config.is_leader():
+                # Try to contact the current leader
+                leader_id = self.config.config["leader_id"]
+                leader_info = next((s for s in self.config.config["servers"] 
+                                if s["id"] == leader_id), None)
+                
+                if leader_info:
+                    try:
+                        sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+                        sock.settimeout(2)
+                        sock.connect((leader_info["host"], leader_info["port"]))
+                        sock.close()
+                        self.logger.info(f"Connected to leader (Server {leader_id})")
+                    except Exception:
+                        self.logger.info(f"Leader (Server {leader_id}) not responding, initiating election")
+                        self.replication.initiate_leader_election()
+            
+            while self.running:
+                try:
+                    client_socket, address = self.server.accept()
+                    client_socket.settimeout(None)  # No timeout for client connections
+                    
+                    # Try to determine if this is a client or server connection
+                    try:
+                        # Peek at the first 8 bytes to identify the message type
+                        peek_data = client_socket.recv(8, socket.MSG_PEEK)
+                        if len(peek_data) >= 8:
+                            _, _, cmd, _ = struct.unpack('!BBHI', peek_data[:8])
+                            
+                            # Commands >= 100 are server-to-server commands
+                            if cmd >= 100:
+                                if cmd == 103:  # ADD_SERVER command
+                                    threading.Thread(target=self.handle_add_server_request, 
+                                                args=(client_socket, address), daemon=True).start()
+                                elif cmd == 104:  # STATE_TRANSFER command
+                                    threading.Thread(target=self.handle_state_transfer_request, 
+                                                args=(client_socket, address), daemon=True).start()
+                                else:
+                                    threading.Thread(target=self.handle_replication_command, 
+                                                args=(client_socket,), daemon=True).start()
+                            else:
+                                threading.Thread(target=self.handle_client, 
+                                            args=(client_socket, address), daemon=True).start()
+                        else:
+                            # Not enough data to determine type, assume client
+                            threading.Thread(target=self.handle_client, 
+                                        args=(client_socket, address), daemon=True).start()
+                            
+                    except Exception as e:
+                        self.logger.error(f"Error identifying connection type: {e}")
+                        client_socket.close()
+                        
+                except socket.timeout:
+                    # This is normal - just continue
+                    continue
+                except Exception as e:
+                    if self.running:
+                        self.logger.error(f"Error accepting connection: {e}")
+            
+        except Exception as e:
+            self.logger.error(f"Server error: {e}")
+        finally:
+            if self.server:
+                self.server.close()
+    
+    def stop(self):
+        """Stop the server."""
+        self.running = False
+        
+        # Stop replication
+        self.replication.stop()
+        
+        # Close persistence
+        self.persistence.close()
+        
+        if self.server:
+            try:
+                self.server.close()
+            except Exception as e:
+                self.logger.error(f"Failed to close socket: {e}")
+        self.logger.info("Server stopped")
+
     def handle_add_server_request(self, client_socket, address):
         """Handle a request from another server to join the cluster.
         
@@ -912,258 +1084,8 @@ class ReplicatedChatServer:
         except Exception as e:
             self.logger.error(f"Error sending response: {e}")
 
-    def handle_state_transfer_request(self, client_socket, address):
-        """Handle a state transfer request from another server.
-        
-        Args:
-            client_socket (socket.socket): Socket connection to the requesting server
-            address (tuple): Address of the requesting server
-        """
-        try:
-            # Read the state transfer request header
-            header = client_socket.recv(8)
-            if len(header) < 8:
-                self.logger.error("Incomplete header in state transfer request")
-                return
-                
-            _, _, cmd, total_length = struct.unpack('!BBHI', header)
-            
-            if cmd != 104:  # Not a STATE_TRANSFER command
-                self.logger.error(f"Unexpected command in state transfer request: {cmd}")
-                return
-                
-            # Read payload
-            payload_length = total_length - 8
-            payload_data = b''
-            bytes_received = 0
-            
-            while bytes_received < payload_length:
-                chunk = client_socket.recv(min(4096, payload_length - bytes_received))
-                if not chunk:
-                    self.logger.error("Connection closed while receiving state transfer request")
-                    return
-                payload_data += chunk
-                bytes_received += len(chunk)
-                
-            # Parse state transfer request
-            try:
-                request = json.loads(payload_data.decode('utf-8'))
-                
-                server_id = request.get("server_id")
-                timestamp = request.get("timestamp")
-                
-                self.logger.info(f"Received state transfer request from server {server_id}")
-                
-                # Get full server state - keep it minimal for testing
-                full_state = {
-                    "users": [],
-                    "messages": [],
-                    "active_users": [],
-                    "operations": []
-                }
-                
-                # Create a small test message to confirm protocol works
-                test_message = {
-                    "id": 1,
-                    "from": "system",
-                    "to": f"server_{server_id}",
-                    "content": "Welcome to the cluster",
-                    "timestamp": int(time.time()),
-                    "read": False,
-                    "delivered_while_offline": False
-                }
-                full_state["messages"].append(test_message)
-                
-                # Send state back to requester - keep it simple
-                serialized_state = json.dumps(full_state).encode('utf-8')
-                
-                # Simple protocol: send length as 4 bytes, then data
-                length_bytes = struct.pack('!I', len(serialized_state))
-                client_socket.sendall(length_bytes)
-                client_socket.sendall(serialized_state)
-                
-                self.logger.info(f"State transfer to server {server_id} completed")
-                
-            except json.JSONDecodeError:
-                self.logger.error("Invalid JSON in state transfer request")
-                
-        except Exception as e:
-            self.logger.error(f"Error handling state transfer request: {e}")
-        finally:
-            # Always close the connection when done
-            try:
-                client_socket.close()
-            except:
-                pass
 
-    def start(self):
-        """Start the server."""
-        try:
-            self.server = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-            self.server.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
-            self.server.settimeout(1)  # 1 second timeout for accepting connections
-            self.server.bind((self.host, self.port))
-            self.server.listen(5)
-            
-            self.running = True
-            self.logger.info(f"Server started on {self.host}:{self.port}")
-            
-            # Give servers time to start up before leader election
-            time.sleep(2)
-            
-            # Check if we're the leader according to config
-            if self.config.config["leader_id"] == self.config.server_id:
-                self.config.leader = True
-                self.logger.info(f"This server ({self.config.server_id}) is the designated leader")
-            elif not self.config.is_leader():
-                # Try to contact the current leader
-                leader_id = self.config.config["leader_id"]
-                leader_info = next((s for s in self.config.config["servers"] 
-                                  if s["id"] == leader_id), None)
-                
-                if leader_info:
-                    try:
-                        sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-                        sock.settimeout(2)
-                        sock.connect((leader_info["host"], leader_info["port"]))
-                        sock.close()
-                        self.logger.info(f"Connected to leader (Server {leader_id})")
-                    except Exception:
-                        self.logger.info(f"Leader (Server {leader_id}) not responding, initiating election")
-                        self.replication.initiate_leader_election()
-            
-            while self.running:
-                try:
-                    client_socket, address = self.server.accept()
-                    client_socket.settimeout(None)  # No timeout for client connections
-                    
-                    # Try to determine if this is a client or server connection
-                    try:
-                        # Peek at the first 8 bytes to identify the message type
-                        peek_data = client_socket.recv(8, socket.MSG_PEEK)
-                        if len(peek_data) >= 8:
-                            _, _, cmd, _ = struct.unpack('!BBHI', peek_data[:8])
-                            
-                            # Commands >= 100 are server-to-server commands
-                            if cmd >= 100:
-                                if cmd == 103:  # ADD_SERVER command
-                                    threading.Thread(target=self.handle_add_server_request, 
-                                                args=(client_socket, address), daemon=True).start()
-                                elif cmd == 104:  # STATE_TRANSFER command
-                                    threading.Thread(target=self.handle_state_transfer_request, 
-                                                args=(client_socket, address), daemon=True).start()
-                                else:
-                                    threading.Thread(target=self.handle_replication_command, 
-                                                args=(client_socket,), daemon=True).start()
-                            else:
-                                threading.Thread(target=self.handle_client, 
-                                            args=(client_socket, address), daemon=True).start()
-                        else:
-                            # Not enough data to determine type, assume client
-                            threading.Thread(target=self.handle_client, 
-                                        args=(client_socket, address), daemon=True).start()
-                            
-                    except Exception as e:
-                        self.logger.error(f"Error identifying connection type: {e}")
-                        client_socket.close()
-                        
-                except socket.timeout:
-                    # This is normal - just continue
-                    continue
-                except Exception as e:
-                    if self.running:
-                        self.logger.error(f"Error accepting connection: {e}")
-            
-        except Exception as e:
-            self.logger.error(f"Server error: {e}")
-        finally:
-            if self.server:
-                self.server.close()
-    
-    def stop(self):
-        """Stop the server."""
-        self.running = False
-        
-        # Stop replication
-        self.replication.stop()
-        
-        # Close persistence
-        self.persistence.close()
-        
-        if self.server:
-            try:
-                self.server.close()
-            except Exception as e:
-                self.logger.error(f"Failed to close socket: {e}")
-        self.logger.info("Server stopped")
-
-def simplified_state_transfer(host, port, server_id):
-    """Perform a simplified state transfer from the leader.
-    
-    Args:
-        host (str): Leader host
-        port (int): Leader port
-        server_id (int): ID of this server
-        
-    Returns:
-        bool: True if successful, False otherwise
-    """
-    try:
-        # Connect to leader
-        sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        sock.settimeout(10)  # 10 second timeout
-        sock.connect((host, port))
-        
-        # Request state transfer
-        transfer_msg = {
-            "server_id": server_id,
-            "timestamp": time.time()
-        }
-        serialized = json.dumps(transfer_msg).encode('utf-8')
-        message = struct.pack('!BBHI', 1, 0, 104, len(serialized) + 8) + serialized
-        sock.sendall(message)
-        
-        # Receive state length (4 bytes)
-        length_bytes = sock.recv(4)
-        if len(length_bytes) != 4:
-            print("Failed to receive state length")
-            return False
-            
-        state_length = struct.unpack('!I', length_bytes)[0]
-        print(f"Expecting state data of length {state_length} bytes")
-        
-        # Receive state data in chunks
-        state_data = b''
-        bytes_received = 0
-        
-        sock.settimeout(30)  # 30 second timeout for data transfer
-        
-        while bytes_received < state_length:
-            chunk = sock.recv(min(8192, state_length - bytes_received))
-            if not chunk:
-                print("Connection closed while receiving state")
-                return False
-                
-            state_data += chunk
-            bytes_received += len(chunk)
-            print(f"Received {bytes_received}/{state_length} bytes of state data...")
-        
-        # Parse and process state data
-        state = json.loads(state_data.decode('utf-8'))
-        print("State transfer completed successfully")
-        print(f"Received state with {len(state.get('messages', []))} messages")
-        
-        return True
-        
-    except Exception as e:
-        print(f"State transfer failed: {e}")
-        return False
-    finally:
-        try:
-            sock.close()
-        except:
-            pass
-
+# In replicated_server.py - Main function with improved join logic
 def main():
     """Main function to start the server."""
     parser = argparse.ArgumentParser(description="Replicated Chat Server")
@@ -1249,15 +1171,59 @@ def main():
                         raise Exception(f"Registration failed: {response.get('message', 'Unknown error')}")
                 except Exception as e:
                     print(f"Warning: Failed to get acknowledgment: {e}")
-                    # Continue anyway - we'll try state transfer
+                    # Continue anyway - we'll request state transfer
                 
+                # Close and reopen connection for state transfer
                 sock.close()
+                sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+                sock.settimeout(10)  # Longer timeout for state transfer
+                sock.connect((host, port))
                 
-                # Perform state transfer with simplified protocol
-                success = simplified_state_transfer(host, port, server.config.server_id)
+                # Request state transfer
+                transfer_msg = {
+                    "server_id": server.config.server_id,
+                    "timestamp": time.time()
+                }
+                serialized = json.dumps(transfer_msg).encode('utf-8')
+                message = struct.pack('!BBHI', 1, 0, 104, len(serialized) + 8) + serialized
+                sock.sendall(message)
+
+                # Wait for response with timeout
+                header = sock.recv(8)
+                if len(header) < 8:
+                    raise Exception("Incomplete header received")
+
+                _, _, cmd, total_length = struct.unpack('!BBHI', header)
+
+                if cmd != 104:  # Check if it's a state transfer response
+                    raise Exception(f"Unexpected command: {cmd}")
+
+                # Read payload in chunks to handle large states
+                payload_length = total_length - 8
+                payload_data = b''
+                bytes_received = 0
+
+                sock.settimeout(30)  # Longer timeout for receiving state
+
+                while bytes_received < payload_length:
+                    chunk = sock.recv(min(8192, payload_length - bytes_received))
+                    if not chunk:
+                        raise Exception("Connection closed while receiving state")
+                    payload_data += chunk
+                    bytes_received += len(chunk)
+                    print(f"Received {bytes_received}/{payload_length} bytes of state data...")
+
+                # Parse and apply state
+                state = json.loads(payload_data.decode('utf-8'))
+                success = server.persistence.apply_full_state(state)
+                
                 if success:
                     print("Joined cluster and received state successfully")
                     break
+                else:
+                    print("Failed to apply received state")
+                    server.logger.error("Failed to apply full state. Aborting startup.")
+                    return
                 
             except Exception as e:
                 backoff = 2 ** attempt

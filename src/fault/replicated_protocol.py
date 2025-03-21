@@ -140,14 +140,19 @@ class ReplicationProtocol:
             bool: True if successful, False otherwise
         """
         try:
-            # Properly encode the payload as JSON
             serialized_payload = json.dumps(payload).encode('utf-8')
-            # Use proper protocol format
             message = struct.pack('!BBHI', 1, 0, cmd, len(serialized_payload) + 8) + serialized_payload
             sock.sendall(message)
             return True
+        except (BrokenPipeError, ConnectionResetError, socket.timeout) as e:
+            self.logger.error(f"Send failed (cmd={cmd}): {e}")
+            try:
+                sock.close()
+            except:
+                pass
+            return False
         except Exception as e:
-            self.logger.error(f"Failed to send message (cmd={cmd}): {e}")
+            self.logger.error(f"Unexpected send error: {e}")
             return False
     
     # In replicated_protocol.py - Fixed _receive_message method
@@ -203,6 +208,7 @@ class ReplicationProtocol:
     def _sync_thread(self):
         """Background thread for synchronizing operations with followers."""
         self.logger.info("Starting synchronization thread")
+        time.sleep(2)  # Wait for all followers to finish setup
         
         while self.is_running:
             try:
@@ -426,37 +432,59 @@ class ReplicationProtocol:
         
         return False
     
-    def add_server(self, host, port):
-        """Add a new server to the replication set.
+    def add_server(self, server_id, host, port):
+        """Add a new server to the replication set and notify other servers.
         
         Args:
+            server_id (int): ID of the new server
             host (str): Server hostname or IP
             port (int): Server port
             
         Returns:
-            int: ID of the added server or -1 if failed
+            bool: True if successful, False otherwise
         """
         if not self.config.is_leader():
             self.logger.error("Only the leader can add new servers")
-            return -1
+            return False
         
-        # Add server to configuration
-        server_id = self.config.add_server(host, port)
-        
-        # Notify all existing servers
+        # Add server to configuration if not already there
+        found = False
         for server in self.config.config["servers"]:
-            if server["id"] != self.config.server_id:
-                sock = self._get_server_socket(server["id"])
-                if sock:
-                    payload = {
-                        "new_server_id": server_id,
-                        "new_server_host": host,
-                        "new_server_port": port,
-                        "timestamp": time.time()
-                    }
-                    self._send_message(sock, self.CMD_ADD_SERVER, payload)
+            if server["id"] == server_id:
+                # Update existing server info
+                server["host"] = host
+                server["port"] = port
+                found = True
+                break
         
-        return server_id
+        if not found:
+            # Add new server to configuration
+            self.config.config["servers"].append({
+                "id": server_id,
+                "host": host,
+                "port": port
+            })
+        
+        # Save configuration
+        self.config.save_config()
+        
+        # Notify all existing servers except the new one
+        for server in self.config.config["servers"]:
+            if server["id"] != server_id and server["id"] != self.config.server_id:
+                try:
+                    sock = self._get_server_socket(server["id"])
+                    if sock:
+                        payload = {
+                            "new_server_id": server_id,
+                            "new_server_host": host,
+                            "new_server_port": port,
+                            "timestamp": time.time()
+                        }
+                        self._send_message(sock, self.CMD_ADD_SERVER, payload)
+                except Exception as e:
+                    self.logger.error(f"Failed to notify server {server['id']} about new server: {e}")
+        
+        return True
     
     def handle_add_server(self, client_socket):
         """Handle an add server message from the leader.
@@ -469,12 +497,38 @@ class ReplicationProtocol:
         """
         cmd, payload = self._receive_message(client_socket)
         if cmd == self.CMD_ADD_SERVER and payload:
-            server_id = payload["new_server_id"]
-            host = payload["new_server_host"]
-            port = payload["new_server_port"]
+            server_id = payload.get("new_server_id")
+            host = payload.get("new_server_host")
+            port = payload.get("new_server_port")
             
-            # Add server to local configuration
-            self.config.add_server(host, port)
+            if server_id is None or host is None or port is None:
+                self.logger.error("Invalid add server message: missing required fields")
+                return None
+            
+            # Update local configuration
+            found = False
+            for server in self.config.config["servers"]:
+                if server["id"] == server_id:
+                    # Update existing server info
+                    server["host"] = host
+                    server["port"] = port
+                    found = True
+                    break
+            
+            if not found:
+                # Add new server to configuration
+                self.config.config["servers"].append({
+                    "id": server_id,
+                    "host": host,
+                    "port": port
+                })
+            
+            # Save configuration
+            self.config.save_config()
+            
+            # Send acknowledgment
+            response = {"success": True}
+            self._send_message(client_socket, self.CMD_ADD_SERVER, response)
             
             return server_id, host, port
         
