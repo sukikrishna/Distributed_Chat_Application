@@ -1,0 +1,158 @@
+syntax = "proto3";
+import "google/protobuf/timestamp.proto";
+
+// Define a gRPC service for client-server communication
+service ClientAccount {
+  // Define an RPC for creating an account
+  rpc CreateAccount(CreateAccountRequest) returns (ServerResponse);
+
+  // Define an RPC for listing all users in the database
+  //rpc ListUsers(Empty) returns (Users);
+
+  rpc ListUsers(ListUsersRequest) returns (Users);
+
+
+  // Define an RPC for logging in to an account
+  rpc Login(LoginRequest) returns (ServerResponse);
+
+  // Define an RPC for sending a message to a recipient
+  rpc Send(SendRequest) returns (ServerResponse);
+
+  // Define an RPC for receiving messages
+  //   rpc SubscribeMessage(ReceiveRequest) returns (stream Message);
+
+  // Define an RPC for receiving messages
+  rpc GetMessages(ReceiveRequest) returns (Messages);
+
+  rpc GetChat(ChatRequest) returns (Messages);
+  // Define an RPC for receiving messages
+  rpc AcknowledgeReceivedMessages(AcknowledgeReceivedMessagesRequest) returns (ServerResponse);
+
+  // Define an RPC for deleting an account
+  rpc DeleteAccount(DeleteAccountRequest) returns (ServerResponse);
+
+  // Define an RPC for logging out of an account
+  rpc Logout(DeleteAccountRequest) returns (ServerResponse);
+}
+
+// Request message for creating an account
+message CreateAccountRequest {
+  string username = 1;
+  string password = 2;
+}
+
+// Response message for server to send back to the client
+message ServerResponse {
+  int32 error_code = 1;
+  string error_message = 2;
+  string session_id = 3;
+}
+
+message AcknowledgeReceivedMessagesRequest {
+  string session_id = 1;
+  repeated int32 message_ids = 2;
+}
+
+// Request message for logging in
+message LoginRequest {
+  string username = 1;
+  string password = 2;
+}
+
+// Request message for sending a message
+message SendRequest {
+  string to = 1;
+  string message = 2;
+  string session_id = 3;
+}
+
+
+message ListUsersRequest {
+    string wildcard = 1;
+}
+
+
+// Request message for receiving messages
+message ReceiveRequest { string session_id = 1; }
+
+
+message ChatRequest { string session_id = 1; string username = 2;}
+
+// Request message for deleting an account
+message DeleteAccountRequest { string session_id = 1; }
+
+// Response message for server to send back to the client
+message Message {
+  string from_ = 1;
+  string message = 2;
+  int32 message_id = 3;
+  google.protobuf.Timestamp time_stamp = 4;
+}
+
+message Messages {
+  int32 error_code = 1;
+  string error_message = 2;
+  repeated Message message = 3;
+}
+
+message Empty {}
+
+message User {
+  string username = 1;
+  string status = 2;
+}
+
+message Users { repeated User user = 1; }
+
+
+// Define a gRPC service for master server communication
+service MasterService {
+  // Define an RPC for registering a slave
+  rpc RegisterSlave(RegisterSlaveRequest) returns (RegisterSlaveResponse);
+
+  // when a slave checks in, master send a response if it doesn't leader elction will be triggered
+  rpc HeartBeat(Empty) returns (Ack);
+  rpc CheckMaster(Empty) returns (Ack);
+}
+
+// Define a gRPC service for slave server communication
+service SlaveService {
+  // Define an RPC for accepting updates from the master
+  rpc AcceptUpdates(AcceptUpdatesRequest) returns (ServerResponse);
+  rpc UpdateMaster(NewMasterRequest) returns (Ack);
+  rpc UpdateSlaves(UpdateSlavesRequest) returns (Ack);
+}
+
+message NewMasterRequest {
+  string new_master_address = 1;
+  string new_master_id = 2;
+}
+
+message UpdateSlavesRequest {
+  bytes update_data = 1;
+}
+
+// Request message for registering a slave
+message RegisterSlaveRequest {
+  string slave_id = 1;
+  string slave_address = 2;
+}
+
+// Response message for registering a slave
+message RegisterSlaveResponse {
+  int32 error_code = 1;
+  string error_message = 2;
+  bytes pickled_db = 3;
+  repeated string other_slaves = 4;
+}
+
+
+// Request message for accepting updates from the master
+message AcceptUpdatesRequest {
+  bytes update_data = 1;
+}
+
+message Ack {
+  int32 error_code = 1;
+  string error_message = 2;
+}
