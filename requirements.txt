@@ -1,0 +1,5 @@
+grpcio==1.53.0
+protobuf==4.22.3
+SQLAlchemy==2.0.9
+SQLAlchemy_Utils==0.40.0
+ttkthemes==3.2.2
