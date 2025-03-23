@@ -173,7 +173,7 @@ class ChatClientGUI(tk.Tk, ChatClientBase):
             message_frame, text="Send", command=self.send_message)
         send_button.pack(side=tk.RIGHT, padx=5)
 
-        recipient_label = ttk.Label(recipient_frame, text="To:")
+        recipient_label = ttk.Label(recipient_frame, text="")
         recipient_label.pack(side=tk.LEFT, padx=5)
 
         # choosen_recipient = tk.StringVar()
